@@ -1,0 +1,4 @@
+include LICENSE README.md PYPI_README.md THIRD_PARTY_NOTICES.md
+recursive-include docs *.md
+recursive-include examples *.diagram *.svg *.html *.png
+recursive-include src/nodelace/assets *.woff2 *.txt

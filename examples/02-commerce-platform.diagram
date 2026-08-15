@@ -1,0 +1,14 @@
+architecture "Commerce Platform"
+direction left-to-right
+
+Browser -> Gateway: HTTPS
+Gateway -> Catalog: browse
+Gateway -> Orders: checkout
+Catalog -> ProductDB: read products
+Orders -> OrderDB: save order
+Orders -> Payments: authorize
+
+group Edge: Browser, Gateway
+group Services: Catalog, Orders, Payments
+group Data: ProductDB, OrderDB
+highlight Gateway

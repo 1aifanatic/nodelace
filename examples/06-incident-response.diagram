@@ -1,0 +1,13 @@
+flow "Incident Response"
+direction left-to-right
+
+Alert -> Triage: page team
+Triage -> Mitigate: confirmed
+Triage -> Close: false alarm
+Mitigate -> Observe: apply fix
+Observe -> Close: stable
+Observe -> Triage: still failing
+
+group Response: Triage, Mitigate, Observe
+group Outcomes: Close
+highlight Mitigate

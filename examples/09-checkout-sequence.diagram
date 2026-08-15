@@ -1,0 +1,12 @@
+sequence "Checkout"
+
+Shopper -> Storefront: place order
+Storefront -> Inventory: reserve items
+Inventory -> Storefront: reserved
+Storefront -> Payments: authorize card
+Payments -> Storefront: approved
+Storefront -> Orders: create order
+Orders -> Storefront: order number
+Storefront -> Shopper: confirmation
+
+highlight Storefront

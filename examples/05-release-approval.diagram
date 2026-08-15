@@ -1,0 +1,13 @@
+flow "Release Approval"
+direction top-to-bottom
+
+Change -> Tests: run suite
+Tests -> Deploy: passing
+Tests -> Fix: failing
+Fix -> Tests: retry
+Deploy -> Verify: smoke test
+Verify -> Complete: healthy
+Verify -> Rollback: unhealthy
+Rollback -> Fix: investigate
+
+highlight Deploy

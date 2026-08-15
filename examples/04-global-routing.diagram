@@ -1,0 +1,12 @@
+architecture "Global Café Routing"
+direction left-to-right
+
+Client -> München: nearest region
+Client -> 東京: nearest region
+München -> Montréal: replicate
+東京 -> Montréal: replicate
+Montréal -> Archive: snapshot
+
+group Regions: München, 東京, Montréal
+group Storage: Archive
+highlight Montréal

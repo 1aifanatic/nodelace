@@ -1,0 +1,10 @@
+sequence "Regional Sync"
+
+Scheduler -> São Paulo: start sync
+São Paulo -> Zürich: send changes
+Zürich -> 東京: forward changes
+東京 -> Zürich: applied
+Zürich -> São Paulo: committed
+São Paulo -> Scheduler: complete
+
+highlight Zürich

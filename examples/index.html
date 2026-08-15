@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Nodelace — 10 examples</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #e9ebea; color: #171717; }
+    header { max-width: 1500px; margin: auto; padding: 48px 24px 20px; }
+    h1 { margin: 0; font-family: Georgia, serif; font-size: clamp(36px, 6vw, 72px); }
+    header p { color: #5f6b7a; max-width: 70ch; }
+    main {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr));
+      align-items: start;
+      gap: 24px;
+      max-width: 1500px;
+      margin: auto;
+      padding: 24px 24px 64px;
+    }
+    article { overflow: hidden; border: 1px solid #c9cdcf; border-radius: 10px; background: white; }
+    article img { display: block; width: 100%; height: auto; background: #f7f7f4; }
+    article footer { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 14px 16px; }
+    h2 { margin: 0; font-size: 16px; }
+    a { color: #9d3212; font: 600 12px ui-monospace, monospace; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Ten Nodelace examples</h1>
+    <p>Architecture, flow, and sequence diagrams rendered locally and deterministically from the linked text sources.</p>
+  </header>
+  <main>
+    <article><img src="rendered/01-hello-world.svg" alt="Hello Nodelace architecture diagram"><footer><h2>01 · Hello, Nodelace</h2><a href="01-hello-world.diagram">SOURCE</a></footer></article>
+    <article><img src="rendered/02-commerce-platform.svg" alt="Commerce platform architecture diagram"><footer><h2>02 · Commerce Platform</h2><a href="02-commerce-platform.diagram">SOURCE</a></footer></article>
+    <article><img src="rendered/03-feedback-control.svg" alt="Warehouse feedback control architecture diagram"><footer><h2>03 · Feedback Control</h2><a href="03-feedback-control.diagram">SOURCE</a></footer></article>
+    <article><img src="rendered/04-global-routing.svg" alt="Global routing architecture diagram"><footer><h2>04 · Global Routing</h2><a href="04-global-routing.diagram">SOURCE</a></footer></article>
+    <article><img src="rendered/05-release-approval.svg" alt="Release approval flow diagram"><footer><h2>05 · Release Approval</h2><a href="05-release-approval.diagram">SOURCE</a></footer></article>
+    <article><img src="rendered/06-incident-response.svg" alt="Incident response flow diagram"><footer><h2>06 · Incident Response</h2><a href="06-incident-response.diagram">SOURCE</a></footer></article>
+    <article><img src="rendered/07-invoice-processing.svg" alt="Invoice processing flow diagram"><footer><h2>07 · Invoice Processing</h2><a href="07-invoice-processing.diagram">SOURCE</a></footer></article>
+    <article><img src="rendered/08-user-sign-in.svg" alt="User sign-in sequence diagram"><footer><h2>08 · User Sign-In</h2><a href="08-user-sign-in.diagram">SOURCE</a></footer></article>
+    <article><img src="rendered/09-checkout-sequence.svg" alt="Checkout sequence diagram"><footer><h2>09 · Checkout</h2><a href="09-checkout-sequence.diagram">SOURCE</a></footer></article>
+    <article><img src="rendered/10-regional-sync.svg" alt="Regional synchronization sequence diagram"><footer><h2>10 · Regional Sync</h2><a href="10-regional-sync.diagram">SOURCE</a></footer></article>
+  </main>
+</body>
+</html>

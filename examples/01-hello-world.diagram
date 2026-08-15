@@ -1,0 +1,5 @@
+architecture "Hello, Nodelace"
+direction left-to-right
+
+Browser -> API -> Database
+highlight API

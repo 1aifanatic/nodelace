@@ -1,0 +1,12 @@
+architecture "Warehouse Feedback Control"
+direction top-to-bottom
+
+Sensors -> Controller: readings
+Controller -> Conveyor: set speed
+Conveyor -> Scanner: parcels
+Scanner -> Controller: throughput
+Controller -> Alerts: anomalies
+
+group Floor: Sensors, Conveyor, Scanner
+group Control: Controller, Alerts
+highlight Controller

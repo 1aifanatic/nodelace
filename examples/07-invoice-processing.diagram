@@ -1,0 +1,15 @@
+flow "Invoice Processing"
+direction top-to-bottom
+
+Inbox -> Extract: new invoice
+Extract -> Validate: parsed fields
+Validate -> Approve: valid
+Validate -> Review: exception
+Review -> Validate: corrected
+Approve -> Ledger: post
+Ledger -> Archive: retained
+
+group Automation: Inbox, Extract, Validate
+group Finance: Review, Approve, Ledger
+group Records: Archive
+highlight Validate

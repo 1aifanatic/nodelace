@@ -1,0 +1,93 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nodelace"
+version = "0.1.0"
+description = "Deterministic, offline diagrams from a tiny text language"
+readme = "PYPI_README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = [
+  "LICENSE",
+  "THIRD_PARTY_NOTICES.md",
+  "src/nodelace/assets/licenses/*.txt",
+]
+authors = [{ name = "Nodelace contributors" }]
+keywords = [
+  "architecture",
+  "diagram",
+  "documentation",
+  "flowchart",
+  "sequence-diagram",
+  "svg",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Documentation",
+  "Topic :: Multimedia :: Graphics :: Graphics Conversion",
+  "Typing :: Typed",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/1aifanatic/nodelace"
+Documentation = "https://github.com/1aifanatic/nodelace#readme"
+Repository = "https://github.com/1aifanatic/nodelace"
+Issues = "https://github.com/1aifanatic/nodelace/issues"
+
+[project.optional-dependencies]
+dev = [
+  "build>=1.2",
+  "coverage[toml]>=7.6",
+  "pytest>=8.3",
+  "ruff>=0.11",
+  "twine>=6.1",
+]
+
+[project.scripts]
+nodelace = "nodelace.cli:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+nodelace = [
+  "py.typed",
+  "assets/fonts/*.woff2",
+  "assets/licenses/*.txt",
+]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-config --strict-markers"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["nodelace"]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+skip_covered = true
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]

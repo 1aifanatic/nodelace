@@ -1,0 +1,10 @@
+sequence "User Sign-In"
+
+Browser -> API: submit credentials
+API -> Identity: verify password
+Identity -> API: verified
+API -> Sessions: create session
+Sessions -> API: session token
+API -> Browser: signed in
+
+highlight API
