@@ -4,6 +4,31 @@ Generate architecture, flow and sequence diagrams locally from compact text.
 **Node.js 22+ is the only required system runtime.** SVG/HTML need no Python
 installation, browser, API key or rendering server.
 
+## Save tokens with local rendering
+
+**Generate diagrams locally with zero LLM API tokens.** Write a compact
+`.diagram` file or edit one of the included examples. Nodelace handles layout,
+connectors, fonts, and SVG/HTML generation on your machine. Optional PNG export
+also runs locally. No LLM, API key, or per-token rendering charge is required.
+
+- **Spend fewer tokens on diagram code:** let Nodelace produce the verbose SVG,
+  HTML, styling, and coordinates. An optional AI assistant only needs to write
+  the compact diagram source.
+- **Regenerate without LLM costs:** edit labels, change themes or sizes, and
+  export again without another model call. Batch generation works the same way.
+- **Keep rendering local:** after installing the package and any optional PNG
+  dependencies, rendering works offline and does not upload diagram content.
+
+This can reduce token usage compared with asking an LLM to
+generate and repeatedly rewrite complete diagram markup. Total savings depend
+on your workflow; no measured savings percentage is claimed.
+
+If you write the source yourself, the entire authoring-and-rendering workflow
+needs no LLM tokens. If you choose AI-assisted authoring, that assistant's
+prompts and responses still use tokens; Nodelace's rendering uses zero.
+For efficient agent workflows, ask for compact diagram source and output file
+paths, and keep generated SVG/font data out of the conversation.
+
 ## Quick start
 
 Install from npm:
