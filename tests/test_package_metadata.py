@@ -15,7 +15,7 @@ def test_public_package_metadata_is_consistent() -> None:
     project = metadata["project"]
 
     assert project["name"] == "nodelace"
-    assert project["version"] == "0.1.0"
+    assert project["version"] == "0.3.0"
     assert project["readme"] == "PYPI_README.md"
     assert project["requires-python"] == ">=3.11"
     assert project["dependencies"] == []

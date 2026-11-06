@@ -77,6 +77,10 @@ class Node:
 
     id: str
     label: str | None = None
+    role: str = "default"
+    shape: str = "box"
+    tag: str | None = None
+    sublabel: str | None = None
 
     def __post_init__(self) -> None:
         node_id = _validate_text(self.id, role="node id", max_length=MAX_NAME_LENGTH)
@@ -87,6 +91,30 @@ class Node:
         )
         object.__setattr__(self, "id", node_id)
         object.__setattr__(self, "label", label)
+        if not isinstance(self.role, str) or self.role not in {
+            "default",
+            "backend",
+            "store",
+            "external",
+            "input",
+            "optional",
+        }:
+            raise _model_error(
+                "node role must be default, backend, store, external, input or optional"
+            )
+        if not isinstance(self.shape, str) or self.shape not in {
+            "box",
+            "decision",
+            "terminal",
+            "merge",
+        }:
+            raise _model_error("node shape must be box, decision, terminal or merge")
+        for field in ("tag", "sublabel"):
+            value = getattr(self, field)
+            if value is not None:
+                _validate_text(value, role=field, max_length=MAX_NAME_LENGTH)
+        if self.shape in {"decision", "merge"} and (self.tag or self.sublabel):
+            raise _model_error("decision and merge shapes do not support tags or sublabels")
 
     @property
     def name(self) -> str:
@@ -102,8 +130,17 @@ class Edge:
     source: str
     target: str
     label: str | None = None
+    kind: str = "normal"
 
     def __post_init__(self) -> None:
+        if not isinstance(self.kind, str) or self.kind not in {
+            "normal",
+            "call",
+            "return",
+            "async",
+            "primary",
+        }:
+            raise _model_error("edge kind must be normal, call, return, async or primary")
         object.__setattr__(
             self,
             "source",
@@ -152,6 +189,54 @@ class Group:
 
 
 @dataclass(frozen=True, slots=True)
+class Fragment:
+    """Sequence frame over a half-open range of message indexes."""
+
+    operator: str
+    guard: str
+    start: int
+    end: int
+    split: int | None = None
+    else_guard: str | None = None
+    depth: int = 0
+
+    def __post_init__(self) -> None:
+        if type(self.depth) is not int or not 0 <= self.depth <= 1:
+            raise _model_error("fragment depth must be 0 or 1")
+        if not isinstance(self.operator, str) or self.operator not in {"alt", "opt", "loop"}:
+            raise _model_error("fragment operator must be alt, opt or loop")
+        _validate_text(self.guard, role="fragment guard", max_length=MAX_NAME_LENGTH)
+        if (
+            type(self.start) is not int
+            or type(self.end) is not int
+            or not 0 <= self.start < self.end
+        ):
+            raise _model_error("fragment needs a nonempty message range")
+        if self.operator == "alt":
+            if type(self.split) is not int or not self.start < self.split < self.end:
+                raise _model_error("alt needs two nonempty regions")
+            _validate_text(self.else_guard, role="else guard", max_length=MAX_NAME_LENGTH)
+        elif self.split is not None or self.else_guard is not None:
+            raise _model_error("only alt supports else")
+
+
+@dataclass(frozen=True, slots=True)
+class Activation:
+    participant: str
+    start: int
+    end: int
+
+    def __post_init__(self) -> None:
+        _validate_text(self.participant, role="activation participant", max_length=MAX_NAME_LENGTH)
+        if (
+            type(self.start) is not int
+            or type(self.end) is not int
+            or not 0 <= self.start < self.end
+        ):
+            raise _model_error("activation needs a nonempty message range")
+
+
+@dataclass(frozen=True, slots=True)
 class Diagram:
     """A complete deterministic diagram document."""
 
@@ -162,6 +247,8 @@ class Diagram:
     groups: tuple[Group, ...] = ()
     highlights: tuple[str, ...] = ()
     direction: Direction | None = None
+    fragments: tuple[Fragment, ...] = ()
+    activations: tuple[Activation, ...] = ()
 
     def __post_init__(self) -> None:
         try:
@@ -216,6 +303,62 @@ class Diagram:
         object.__setattr__(self, "edges", edges)
         object.__setattr__(self, "groups", groups)
         object.__setattr__(self, "highlights", highlights)
+        fragments = _tuple(self.fragments, role="fragments")
+        activations = _tuple(self.activations, role="activations")
+        if not all(isinstance(f, Fragment) for f in fragments):
+            raise _model_error("fragments must contain Fragment values")
+        if not all(isinstance(a, Activation) for a in activations):
+            raise _model_error("activations must contain Activation values")
+        object.__setattr__(self, "fragments", fragments)
+        object.__setattr__(self, "activations", activations)
+        if (fragments or activations) and kind is not DiagramKind.SEQUENCE:
+            raise _model_error("fragments and activations require a sequence diagram")
+        if len(fragments) > 12 or len(activations) > MAX_EDGES:
+            raise _model_error("too many sequence fragments or activations")
+        for frame in fragments:
+            if frame.end > len(edges):
+                raise _model_error("fragment extends past the final message")
+            for other in fragments:
+                if frame is other:
+                    continue
+                if frame.depth == other.depth and max(frame.start, other.start) < min(
+                    frame.end, other.end
+                ):
+                    raise _model_error("fragments at the same depth cannot overlap")
+                if frame.start < other.start < frame.end < other.end:
+                    raise _model_error("sequence fragments cannot partially overlap")
+            containers = [
+                f
+                for f in fragments
+                if f is not frame
+                and f.depth < frame.depth
+                and f.start <= frame.start
+                and frame.end <= f.end
+            ]
+            if len(containers) > 1:
+                raise _model_error("sequence fragments permit one nested level")
+            if frame.depth == 1 and not containers:
+                raise _model_error("nested fragment needs an enclosing frame")
+            if (
+                containers
+                and containers[0].split is not None
+                and frame.start < containers[0].split < frame.end
+            ):
+                raise _model_error("nested fragment cannot cross an alt branch boundary")
+        for activation in activations:
+            if activation.end > len(edges):
+                raise _model_error("activation extends past the final message")
+            if activation.participant not in {n.id for n in nodes}:
+                raise _model_error("activation references undefined participant")
+        for index, activation in enumerate(activations):
+            for other in activations[index + 1 :]:
+                if activation.participant != other.participant:
+                    continue
+                if activation == other:
+                    raise _model_error("duplicate activation ranges are ambiguous")
+                first, second = sorted((activation, other), key=lambda a: (a.start, -a.end))
+                if first.start < second.start < first.end < second.end:
+                    raise _model_error("activation ranges must be nested or disjoint")
 
         if len(nodes) > MAX_NODES:
             raise _model_error(f"diagram has more than {MAX_NODES} nodes")
@@ -227,6 +370,10 @@ class Diagram:
             raise _model_error("direction is not supported for sequence diagrams")
         if kind is DiagramKind.SEQUENCE and groups:
             raise _model_error("groups are not supported for sequence diagrams")
+        if kind is DiagramKind.SEQUENCE and any(
+            node.shape in {"decision", "merge"} for node in nodes
+        ):
+            raise _model_error("sequence participants require box or terminal shapes")
 
         node_ids: set[str] = set()
         for node in nodes:
@@ -248,14 +395,11 @@ class Diagram:
             group_names.add(group.name)
             for member in group.members:
                 if member not in node_ids:
-                    raise _model_error(
-                        f"group {group.name!r} references undefined node {member!r}"
-                    )
+                    raise _model_error(f"group {group.name!r} references undefined node {member!r}")
                 previous = membership.get(member)
                 if previous is not None:
                     raise _model_error(
-                        f"node {member!r} cannot belong to both "
-                        f"{previous!r} and {group.name!r}"
+                        f"node {member!r} cannot belong to both {previous!r} and {group.name!r}"
                     )
                 membership[member] = group.name
 
@@ -281,10 +425,12 @@ __all__ = [
     "MAX_NAME_LENGTH",
     "MAX_NODES",
     "MAX_TITLE_LENGTH",
+    "Activation",
     "Diagram",
     "DiagramKind",
     "Direction",
     "Edge",
+    "Fragment",
     "Group",
     "Node",
 ]

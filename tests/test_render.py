@@ -20,14 +20,14 @@ SVG = "{http://www.w3.org/2000/svg}"
 
 @pytest.fixture
 def architecture_source() -> str:
-    return '''architecture "Order & Fulfilment"
+    return """architecture "Order & Fulfilment"
 direction left-to-right
 Customer -> API: submits <order>
 API -> Database: writes
 API -> Payments: authorizes
 group Backend: API, Database, Payments
 highlight API
-'''
+"""
 
 
 def _root(svg: str) -> ET.Element:
@@ -141,13 +141,13 @@ def test_format_dispatch_rejects_unknown_format(architecture_source: str) -> Non
 
 
 def test_sequence_renders_participants_lifelines_and_messages() -> None:
-    source = '''sequence "Sign in"
+    source = """sequence "Sign in"
 Browser -> API: credentials
 API -> Identity: verify
 Identity -> API: accepted
 API -> Browser: session
 highlight API
-'''
+"""
 
     output = render(source, embed_fonts=False)
 
@@ -211,9 +211,7 @@ def test_density_warning_does_not_drop_content() -> None:
 
 def test_path_rounding_handles_empty_degenerate_and_orthogonal_routes() -> None:
     assert _rounded_path(()) == ""
-    assert _rounded_path((Point(0, 0), Point(0, 0), Point(8, 0))) == (
-        "M 0 0 L 0 0 L 8 0"
-    )
+    assert _rounded_path((Point(0, 0), Point(0, 0), Point(8, 0))) == ("M 0 0 L 0 0 L 8 0")
     assert " Q " in _rounded_path((Point(0, 0), Point(20, 0), Point(20, 20)))
 
 

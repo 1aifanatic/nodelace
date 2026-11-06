@@ -1,0 +1,10 @@
+architecture "An order, from intent to receipt"
+node Shop role=external tag=WEB sublabel="Customer storefront"
+node API role=backend tag=CORE sublabel="Order orchestration"
+node Ledger role=store tag=SQL sublabel="Durable order records"
+node Events role=optional tag=ASYNC sublabel="Receipts and fulfilment"
+Shop -> API: submit order
+API => Ledger: commit
+API ~> Events: order placed
+group Runtime: API, Ledger, Events
+highlight API

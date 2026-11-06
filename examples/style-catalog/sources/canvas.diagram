@@ -1,0 +1,3 @@
+architecture "Choose an output size"
+Browser -> API: HTTPS
+highlight API

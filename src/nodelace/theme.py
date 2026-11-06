@@ -3,25 +3,27 @@
 from __future__ import annotations
 
 import re
+import tomllib
 from base64 import b64encode
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import lru_cache
 from importlib.resources import files
+from pathlib import Path
 
 
 @dataclass(frozen=True, slots=True)
 class Theme:
     """A compact set of semantic design tokens used by the SVG renderer."""
 
-    paper: str = "#f7f7f4"
+    paper: str = "#f5f5f5"
     surface: str = "#ffffff"
-    ink: str = "#171717"
-    muted: str = "#5f6b7a"
-    accent: str = "#ff865e"
-    accent_soft: str = "#fff0ea"
-    hairline: str = "#c9cdcf"
-    group_fill: str = "#f0f2f2"
-    feedback: str = "#657384"
+    ink: str = "#2d3142"
+    muted: str = "#4f5d75"
+    accent: str = "#bf4520"
+    accent_soft: str = "#f1e7e4"
+    hairline: str = "#bfc0c0"
+    group_fill: str = "#ececec"
+    feedback: str = "#4f5d75"
 
     def __post_init__(self) -> None:
         """Reject CSS-capable values so custom themes remain offline and inert."""
@@ -43,6 +45,47 @@ class Theme:
 
 
 EDITORIAL_LIGHT = Theme()
+EDITORIAL_DARK = Theme(
+    paper="#2d3142",
+    surface="#393e53",
+    ink="#f5f5f5",
+    muted="#bfc0c0",
+    accent="#f08a59",
+    accent_soft="#413a44",
+    hairline="#686b77",
+    group_fill="#34394c",
+    feedback="#bfc0c0",
+)
+THEMES = {"light": EDITORIAL_LIGHT, "dark": EDITORIAL_DARK}
+
+
+def contrast_ratio(first: str, second: str) -> float:
+    def luminance(color: str) -> float:
+        values = [int(color[i : i + 2], 16) / 255 for i in (1, 3, 5)]
+        linear = [v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4 for v in values]
+        return sum(v * weight for v, weight in zip(linear, (0.2126, 0.7152, 0.0722), strict=True))
+
+    light, dark = sorted((luminance(first), luminance(second)), reverse=True)
+    return (light + 0.05) / (dark + 0.05)
+
+
+def load_theme(path: str | Path) -> Theme:
+    """Read a bounded TOML [theme] table, based on light or dark; reject unknown keys."""
+    with Path(path).open("rb") as stream:
+        data = stream.read(16385)
+    if len(data) > 16384:
+        raise ValueError("theme profile exceeds 16 KiB")
+    document = tomllib.loads(data.decode("utf-8"))
+    if set(document) != {"theme"} or not isinstance(document["theme"], dict):
+        raise ValueError("profile must contain exactly one [theme] table")
+    values = dict(document["theme"])
+    base = values.pop("base", "light")
+    if not isinstance(base, str) or base not in THEMES:
+        raise ValueError("theme base must be light or dark")
+    try:
+        return replace(THEMES[base], **values)
+    except TypeError as error:
+        raise ValueError(f"unknown theme setting: {error}") from error
 
 
 _FONT_FILES: tuple[tuple[str, str, str, str], ...] = (
@@ -87,31 +130,53 @@ def embedded_font_license_notice() -> str:
     )
 
 
-def svg_css(theme: Theme = EDITORIAL_LIGHT, *, embed_fonts: bool = True) -> str:
+def svg_css(
+    theme: Theme = EDITORIAL_LIGHT, *, embed_fonts: bool = True, scope: str | None = None
+) -> str:
     """Build the complete, script-free CSS embedded in each generated SVG."""
 
     fonts = embedded_font_css() if embed_fonts else ""
-    return fonts + "".join(
+    styles = "".join(
         (
             f".canvas{{fill:{theme.paper};}}",
-            f".title{{font:400 30px 'Instrument Serif',Georgia,serif;fill:{theme.ink};}}",
+            f".title{{font:400 28px 'Instrument Serif',Georgia,serif;fill:{theme.ink};}}",
             f".subtitle{{font:500 11px 'Geist Mono',monospace;letter-spacing:.12em;"
             f"text-transform:uppercase;fill:{theme.muted};}}",
             f".group-box{{fill:{theme.group_fill};stroke:{theme.hairline};stroke-width:1;}}",
             f".group-label{{font:600 11px 'Geist',Arial,sans-serif;fill:{theme.muted};}}",
-            f".node-box{{fill:{theme.surface};stroke:{theme.ink};stroke-width:1.25;}}",
+            f".node-box{{fill:{theme.surface};stroke:{theme.ink};stroke-width:1;}}",
+            f".node-box.role-store{{fill:{theme.group_fill};stroke:{theme.muted};}}",
+            f".node-box.role-external{{fill:{theme.group_fill};stroke:{theme.muted};}}",
+            f".node-box.role-input{{fill:{theme.group_fill};stroke:{theme.muted};}}",
+            f".node-box.role-optional{{fill:{theme.paper};stroke:{theme.muted};"
+            "stroke-dasharray:4 3;}",
+            f".merge{{fill:{theme.ink};}}",
+            f".fragment{{fill:none;stroke:{theme.muted};stroke-width:1;}}",
+            f".activation{{fill:{theme.group_fill};stroke:{theme.muted};stroke-width:.8;}}",
+            f".node-tag{{font:500 8px 'Geist Mono',monospace;fill:{theme.muted};}}",
+            f".node-sublabel{{font:400 9px 'Geist Mono',monospace;fill:{theme.muted};}}",
             f".node-box.highlight{{fill:{theme.accent_soft};stroke:{theme.accent};"
-            "stroke-width:2.5;}",
-            f".node-label{{font:550 14px 'Geist',Arial,sans-serif;fill:{theme.ink};}}",
-            f".edge{{fill:none;stroke:{theme.ink};stroke-width:1.5;"
+            "stroke-width:1.2;}",
+            f".node-label{{font:600 12px 'Geist',Arial,sans-serif;fill:{theme.ink};}}",
+            f".edge{{fill:none;stroke:{theme.muted};stroke-width:1;"
             "stroke-linejoin:round;stroke-linecap:round;}",
             f".edge.feedback{{stroke:{theme.feedback};stroke-dasharray:6 5;}}",
+            f".crossing-halo{{fill:none;stroke:{theme.paper};stroke-width:5;}}",
             f".edge-label-bg{{fill:{theme.paper};}}",
+            f".fragment-guard{{paint-order:stroke;stroke:{theme.paper};stroke-width:4;}}",
             f".edge-label{{font:500 11px 'Geist Mono',monospace;fill:{theme.muted};}}",
-            f".lifeline{{fill:none;stroke:{theme.hairline};stroke-width:1.25;"
-            "stroke-dasharray:4 5;}",
-            f".message{{fill:none;stroke:{theme.ink};stroke-width:1.5;}}",
+            f".lifeline{{fill:none;stroke:{theme.muted};stroke-width:1;stroke-dasharray:4 5;}}",
+            f".message{{fill:none;stroke:{theme.muted};stroke-width:1;}}",
+            ".kind-return{stroke-dasharray:4 3;}",
+            ".kind-async{stroke-dasharray:4 3;}",
+            f".kind-primary{{stroke:{theme.accent};stroke-width:1.2;}}",
             f".message-label{{font:500 12px 'Geist',Arial,sans-serif;fill:{theme.ink};}}",
             f".legend{{font:500 10px 'Geist Mono',monospace;fill:{theme.muted};}}",
         )
     )
+    if scope is not None:
+        if re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]*", scope) is None:
+            raise ValueError("SVG scope must be a safe identifier")
+        styles = re.sub(r"(\.[^{}]+\{)", lambda match: f"#{scope} {match[1]}", styles)
+        styles += f"#{scope} text{{font-kerning:none;font-variant-ligatures:none;}}"
+    return fonts + styles

@@ -1,0 +1,15 @@
+sequence "Sign in, with two outcomes"
+node Browser role=external tag=WEB
+node API role=backend tag=AUTH
+node Identity role=store tag=IDP
+call Browser -> API: credentials
+activate API
+call API -> Identity: verify
+Identity --> API: verdict
+alt "credentials valid"
+API --> Browser: session issued
+else "credentials invalid"
+API --> Browser: access denied
+end
+deactivate API
+highlight API

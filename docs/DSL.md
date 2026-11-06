@@ -214,6 +214,53 @@ labels are limited to 500 characters. The CLI and `render_file` additionally
 limit a source file to 256 KiB. These are safety ceilings, not density targets:
 most published diagrams are clearer with far fewer elements.
 
+## Semantic declarations (0.2)
+
+```text
+flow "Release gate"
+node Gate shape=decision label="Ready?"
+node Build role=backend tag=CI sublabel="Build and test"
+node Done shape=terminal
+Build -> Gate
+Gate => Done: yes
+Gate -> Build: no
+```
+
+`node ID` accepts `label`, `role`, `shape`, `tag`, and `sublabel` as `key=value`
+attributes. Quote multiword IDs and values. Unknown/repeated attributes and
+duplicate declarations fail. A declaration can follow an edge mentioning its ID.
+Roles: `default`, `backend`, `store`, `external`, `input`, `optional`.
+Shapes: `box`, `terminal`, `decision`, `merge`. Decision and merge shapes do not
+accept tags/sublabels. A merge is a small circle whose name remains accessible.
+Sequence participants accept box/terminal shapes only.
+
+Arrows: `->` ordinary, `-->` return, `~>` asynchronous, `=>` primary.
+`call A -> B: request` explicitly denotes a sequence call. Labels never determine
+message kind. Returns are dashed; async messages have open arrowheads; primary
+edges use the accent color.
+
+```text
+sequence "Sign in"
+Browser -> API: authenticate
+activate API
+alt "valid credentials"
+API --> Browser: session
+else "invalid credentials"
+API --> Browser: rejected
+end
+deactivate API
+```
+
+ALT requires two nonempty regions and an explicit `else` guard. OPT and LOOP
+require a quoted guard and close with `end`. At most one nested level is supported;
+nested frames cannot cross ALT branch boundaries. `activate NAME` and
+`deactivate NAME` delimit explicit nonempty message ranges. Activations are never
+guessed from labels. Unclosed regions and activations fail validation.
+
+`check INPUT --layout` checks geometry, shortened text, contrast and editorial
+budgets. `--strict` makes warnings fail too (exit 2). Pass the same `--theme`,
+`--profile` and `--size` used for rendering. Inspect images before sharing.
+
 ## Complete examples
 
 See the ten sources in [examples](../examples). They cover both layout

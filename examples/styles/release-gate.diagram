@@ -1,0 +1,11 @@
+flow "Ship with confidence"
+node Start shape=terminal label="Ready for review"
+node Tests shape=box label="Run checks" sublabel="Tests, lint, package"
+node Approved shape=decision label="Checks pass?"
+node Ship shape=terminal label="Publish release"
+node Fix label="Resolve failures"
+Start -> Tests -> Approved
+Approved => Ship: yes
+Approved -> Fix: no
+Fix -> Tests: retry
+highlight Ship

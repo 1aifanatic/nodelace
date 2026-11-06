@@ -1,0 +1,11 @@
+flow "A release with a safety gate"
+node Start shape=terminal label="Ready for review"
+node Tests label="Run checks" sublabel="Tests, lint, package"
+node Gate shape=decision label="Checks pass?"
+node Ship shape=terminal label="Publish release"
+node Fix label="Resolve failures"
+Start -> Tests -> Gate
+Gate => Ship: yes
+Gate -> Fix: no
+Fix -> Tests: retry
+highlight Ship

@@ -1,0 +1,17 @@
+sequence "Calls and optional work"
+node Client role=external
+node API role=backend tag=SERVICE
+node Worker role=optional
+call Client -> API: submit
+activate API
+API -> API: validate
+alt "request accepted"
+opt "background work enabled"
+API ~> Worker: enqueue
+end
+API => Client: accepted
+else "request rejected"
+API --> Client: rejected
+end
+deactivate API
+highlight API

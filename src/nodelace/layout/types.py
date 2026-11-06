@@ -120,6 +120,13 @@ class SequenceMessage:
 
 
 @dataclass(frozen=True, slots=True)
+class SequenceFrame:
+    fragment: Any
+    bounds: Rect
+    divider_y: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class LayoutResult:
     diagram: Any
     kind: str
@@ -130,6 +137,7 @@ class LayoutResult:
     edges: tuple[RoutedEdge, ...] = ()
     participants: tuple[SequenceParticipant, ...] = ()
     messages: tuple[SequenceMessage, ...] = ()
+    frames: tuple[SequenceFrame, ...] = ()
 
     @property
     def width(self) -> int:

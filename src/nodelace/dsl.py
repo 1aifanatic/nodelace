@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shlex
 from itertools import pairwise
 from unicodedata import category
 
@@ -13,16 +14,46 @@ from nodelace.model import (
     MAX_NAME_LENGTH,
     MAX_NODES,
     MAX_TITLE_LENGTH,
+    Activation,
     Diagram,
     DiagramKind,
     Direction,
     Edge,
+    Fragment,
     Group,
     Node,
     _is_unsafe_character,
 )
 
 _KIND_WORDS = {kind.value: kind for kind in DiagramKind}
+
+
+def _split_edges(text: str) -> tuple[list[str], list[str]]:
+    parts: list[str] = []
+    kinds: list[str] = []
+    start = index = 0
+    quoted = escaped = False
+    while index < len(text):
+        char = text[index]
+        if escaped:
+            escaped = False
+        elif quoted and char == "\\":
+            escaped = True
+        elif char == '"':
+            quoted = not quoted
+        elif not quoted:
+            arrow = next((a for a in ("-->", "->", "~>", "=>") if text.startswith(a, index)), None)
+            if arrow:
+                parts.append(text[start:index])
+                kinds.append(
+                    {"-->": "return", "->": "normal", "~>": "async", "=>": "primary"}[arrow]
+                )
+                index += len(arrow)
+                start = index
+                continue
+        index += 1
+    parts.append(text[start:])
+    return parts, kinds
 
 
 def _strip_comment(line: str) -> str:
@@ -71,11 +102,7 @@ def _split_unquoted(text: str, separator: str, *, maxsplit: int = -1) -> list[st
             quoted = not quoted
             index += 1
             continue
-        if (
-            not quoted
-            and text.startswith(separator, index)
-            and (maxsplit < 0 or splits < maxsplit)
-        ):
+        if not quoted and text.startswith(separator, index) and (maxsplit < 0 or splits < maxsplit):
             parts.append(text[start:index])
             index += len(separator)
             start = index
@@ -161,9 +188,7 @@ def _decode_text(
                 line_number=line_number,
                 original=original,
             )
-        unsafe = next(
-            (character for character in result if _is_unsafe_character(character)), None
-        )
+        unsafe = next((character for character in result if _is_unsafe_character(character)), None)
         if unsafe is not None:
             reason = (
                 "a control character" if category(unsafe) == "Cc" else "an XML-unsafe character"
@@ -208,9 +233,7 @@ def _decode_text(
             )
             if unsafe is not None:
                 reason = (
-                    "a control character"
-                    if category(unsafe) == "Cc"
-                    else "an XML-unsafe character"
+                    "a control character" if category(unsafe) == "Cc" else "an XML-unsafe character"
                 )
                 raise _validation(
                     f"{role} contains {reason}",
@@ -258,6 +281,7 @@ def parse_diagram(source: str, *, source_name: str = "<string>") -> Diagram:
     direction: Direction | None = None
     direction_seen = False
     node_ids: list[str] = []
+    node_specs: dict[str, Node] = {}
     edges: list[Edge] = []
     groups: list[Group] = []
     group_names: set[str] = set()
@@ -265,13 +289,16 @@ def parse_diagram(source: str, *, source_name: str = "<string>") -> Diagram:
     highlights: list[str] = []
     highlighted: set[str] = set()
     statement_index = 0
+    fragments: list[Fragment] = []
+    frames: list[dict] = []
+    active: dict[str, list[int]] = {}
+    activations: list[Activation] = []
 
     def remember(name: str, *, line_number: int, original: str) -> None:
         if name not in node_ids:
             if len(node_ids) == MAX_NODES:
                 raise _validation(
-                    f"diagram has more than {MAX_NODES} nodes "
-                    f"(first extra node is {name!r})",
+                    f"diagram has more than {MAX_NODES} nodes (first extra node is {name!r})",
                     source_name=source_name,
                     line_number=line_number,
                     original=original,
@@ -304,6 +331,87 @@ def parse_diagram(source: str, *, source_name: str = "<string>") -> Diagram:
                 line_number=line_number,
                 original=original,
             )
+        if first_word == "node":
+            try:
+                tokens = shlex.split(line)
+                if len(tokens) < 2:
+                    raise ValueError("node needs an identifier")
+                name = tokens[1]
+                if name in node_specs:
+                    raise ValueError(f"node {name!r} is already declared")
+                attributes: dict[str, str] = {}
+                for token in tokens[2:]:
+                    key, separator, value = token.partition("=")
+                    if not separator or key not in {"label", "role", "shape", "tag", "sublabel"}:
+                        raise ValueError(
+                            "node attributes are label=, role=, shape=, tag=, sublabel="
+                        )
+                    if key in attributes:
+                        raise ValueError(f"duplicate node attribute {key!r}")
+                    attributes[key] = value
+                node_specs[name] = Node(name, **attributes)
+                remember(name, line_number=line_number, original=original)
+            except (ValueError, DiagramValidationError) as error:
+                raise _validation(
+                    str(error), source_name=source_name, line_number=line_number, original=original
+                ) from error
+            continue
+        if first_word in {"alt", "opt", "loop", "else", "end", "activate", "deactivate"}:
+            try:
+                if kind is not DiagramKind.SEQUENCE:
+                    raise ValueError("sequence directives require a sequence diagram")
+                tail = line[len(first_word) :].strip()
+                if first_word == "end":
+                    if tail or not frames:
+                        raise ValueError("end requires an open sequence fragment and no arguments")
+                    frame = frames.pop()
+                    fragments.append(Fragment(**frame, end=len(edges)))
+                elif first_word in {"activate", "deactivate"}:
+                    name = _decode_text(
+                        tail,
+                        role="participant",
+                        source_name=source_name,
+                        line_number=line_number,
+                        original=original,
+                        max_length=MAX_NAME_LENGTH,
+                    )
+                    remember(name, line_number=line_number, original=original)
+                    if first_word == "activate":
+                        active.setdefault(name, []).append(len(edges))
+                    elif active.get(name):
+                        activations.append(Activation(name, active[name].pop(), len(edges)))
+                    else:
+                        raise ValueError(f"participant {name!r} is not active")
+                else:
+                    guard = _decode_text(
+                        tail,
+                        role="guard",
+                        source_name=source_name,
+                        line_number=line_number,
+                        original=original,
+                        require_quoted=True,
+                        max_length=MAX_NAME_LENGTH,
+                    )
+                    if first_word == "else":
+                        if not frames or frames[-1]["operator"] != "alt" or "split" in frames[-1]:
+                            raise ValueError("else requires an alt with no previous else")
+                        frames[-1].update(split=len(edges), else_guard=guard)
+                    else:
+                        if len(frames) >= 2:
+                            raise ValueError("sequence fragments permit one nested level")
+                        frames.append(
+                            dict(
+                                operator=first_word,
+                                guard=guard,
+                                start=len(edges),
+                                depth=len(frames),
+                            )
+                        )
+            except (ValueError, DiagramValidationError) as error:
+                raise _validation(
+                    str(error), source_name=source_name, line_number=line_number, original=original
+                ) from error
+            continue
         if line == "direction":
             raise _syntax(
                 "direction needs 'left-to-right' or 'top-to-bottom'",
@@ -458,8 +566,9 @@ def parse_diagram(source: str, *, source_name: str = "<string>") -> Diagram:
                 highlights.append(name)
                 highlighted.add(name)
             continue
-        edge_and_label = _split_unquoted(line, ":", maxsplit=1)
-        edge_parts = _split_unquoted(edge_and_label[0], "->")
+        is_call = line.startswith("call ")
+        edge_and_label = _split_unquoted(line[5:] if is_call else line, ":", maxsplit=1)
+        edge_parts, edge_kinds = _split_edges(edge_and_label[0])
         if len(edge_parts) > 1:
             names = [
                 _decode_text(
@@ -494,9 +603,16 @@ def parse_diagram(source: str, *, source_name: str = "<string>") -> Diagram:
                     line_number=line_number,
                     original=original,
                 )
-            edges.extend(Edge(left, right) for left, right in relationships[:-1])
+            edges.extend(
+                Edge(left, right, kind="call" if is_call else edge_kind)
+                for (left, right), edge_kind in zip(
+                    relationships[:-1], edge_kinds[:-1], strict=True
+                )
+            )
             final_source, final_target = relationships[-1]
-            edges.append(Edge(final_source, final_target, label))
+            edges.append(
+                Edge(final_source, final_target, label, "call" if is_call else edge_kinds[-1])
+            )
             continue
         if statement_index == 1 and header_tail and header_tail[0].startswith('"'):
             raise _syntax(
@@ -512,14 +628,18 @@ def parse_diagram(source: str, *, source_name: str = "<string>") -> Diagram:
             line_text=original,
         )
 
+    if frames or any(active.values()):
+        raise DiagramValidationError("unclosed fragment or activation", source_name=source_name)
     return Diagram(
         kind=kind,
         title=title,
-        nodes=tuple(Node(node_id) for node_id in node_ids),
+        nodes=tuple(node_specs.get(node_id) or Node(node_id) for node_id in node_ids),
         edges=tuple(edges),
         groups=tuple(groups),
         highlights=tuple(highlights),
         direction=direction,
+        fragments=tuple(sorted(fragments, key=lambda f: (f.start, f.depth, -f.end))),
+        activations=tuple(activations),
     )
 
 

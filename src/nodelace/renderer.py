@@ -5,12 +5,14 @@ from __future__ import annotations
 import hashlib
 import html
 import os
+import re
 import secrets
 import shutil
 import stat
 import warnings
 import xml.etree.ElementTree as ET
 from collections.abc import Iterable
+from itertools import pairwise
 from pathlib import Path
 from typing import Literal
 
@@ -18,7 +20,9 @@ from nodelace import __version__
 from nodelace.dsl import parse_diagram
 from nodelace.errors import DiagramValidationError
 from nodelace.layout import LayoutResult, Point, Rect, layout_diagram
-from nodelace.model import Diagram
+from nodelace.model import Diagram, Node
+from nodelace.presentation import footer_height, frame_size, legend_entries
+from nodelace.text import EDGE_MAX_WIDTH, EDGE_SIZE, edge_label_size, ellipsize, wrap_text
 from nodelace.theme import EDITORIAL_LIGHT, Theme, embedded_font_license_notice, svg_css
 
 SVG_NAMESPACE = "http://www.w3.org/2000/svg"
@@ -63,27 +67,40 @@ def _title(diagram: Diagram) -> str:
 def _description(diagram: Diagram) -> str:
     labels = {str(node.id): str(node.label or node.id) for node in diagram.nodes}
     nodes = ", ".join(labels[str(node.id)] for node in diagram.nodes) or "none"
-    relationships = "; ".join(
-        f"{labels[str(edge.source)]} to {labels[str(edge.target)]}"
-        + (f", {edge.label}" if edge.label else "")
-        for edge in diagram.edges
-    ) or "none"
+    relationships = (
+        "; ".join(
+            f"{labels[str(edge.source)]} to {labels[str(edge.target)]}"
+            + (f", {edge.label}" if edge.label else "")
+            for edge in diagram.edges
+        )
+        or "none"
+    )
     return (
         f"{_kind_value(diagram).capitalize()} diagram titled {_title(diagram)!r}. "
         f"Nodes in source order: {nodes}. Relationships in source order: {relationships}."
+        + "".join(
+            f" {f.operator.upper()} [{f.guard}]"
+            + (f" ELSE [{f.else_guard}]" if f.else_guard else "")
+            + "."
+            for f in diagram.fragments
+        )
     )
 
 
-def _fingerprint(diagram: Diagram) -> str:
+def _fingerprint(diagram: Diagram, theme: Theme = EDITORIAL_LIGHT, size: str = "fit") -> str:
     semantic = repr(
         (
             _kind_value(diagram),
             diagram.title,
-            tuple((node.id, node.label) for node in diagram.nodes),
-            tuple((edge.source, edge.target, edge.label) for edge in diagram.edges),
+            diagram.nodes,
+            diagram.edges,
             tuple((group.name, group.members) for group in diagram.groups),
             diagram.highlights,
             str(getattr(diagram.direction, "value", diagram.direction)),
+            theme,
+            diagram.fragments,
+            diagram.activations,
+            size,
         )
     ).encode("utf-8")
     return hashlib.sha256(semantic).hexdigest()[:12]
@@ -97,9 +114,7 @@ def _rounded_path(points: Iterable[Point], radius: int = 8) -> str:
         return "M " + " L ".join(f"{point.x} {point.y}" for point in route)
 
     commands = [f"M {route[0].x} {route[0].y}"]
-    for previous, corner, following in zip(
-        route[:-2], route[1:-1], route[2:], strict=True
-    ):
+    for previous, corner, following in zip(route[:-2], route[1:-1], route[2:], strict=True):
         before_dx = previous.x - corner.x
         before_dy = previous.y - corner.y
         after_dx = following.x - corner.x
@@ -125,29 +140,7 @@ def _rounded_path(points: Iterable[Point], radius: int = 8) -> str:
 
 
 def _label_lines(label: str, width: int) -> tuple[str, ...]:
-    max_chars = max(10, (width - 28) // 8)
-    if len(label) <= max_chars:
-        return (label,)
-    words = label.replace("_", " ").split()
-    if not words:
-        return (label[:max_chars], label[max_chars : max_chars * 2])
-    lines: list[str] = []
-    current = ""
-    for word in words:
-        pieces = [word[index : index + max_chars] for index in range(0, len(word), max_chars)]
-        for piece in pieces:
-            candidate = f"{current} {piece}".strip()
-            if current and len(candidate) > max_chars:
-                lines.append(current)
-                current = piece
-            else:
-                current = candidate
-    if current:
-        lines.append(current)
-    if len(lines) > 2:
-        second = lines[1]
-        lines = [lines[0], second[: max(1, max_chars - 1)] + "…"]
-    return tuple(lines)
+    return wrap_text(label, max(16, width - 28))
 
 
 def _ellipsize(label: str, max_chars: int) -> str:
@@ -184,10 +177,9 @@ def _text_in_box(parent: ET.Element, label: str, bounds: Rect) -> None:
 def _edge_label(parent: ET.Element, label: str | None, position: Point) -> None:
     if not label:
         return
-    lines = _label_lines(label, 300)
-    width = max(36, max(len(line) for line in lines) * 7 + 16)
+    lines = wrap_text(label, EDGE_MAX_WIDTH, EDGE_SIZE, "mono")
+    width, height = edge_label_size(label)
     line_height = 14
-    height = 20 + (len(lines) - 1) * line_height
     top = position.y - 14 - (len(lines) - 1) * (line_height // 2)
     _add(
         parent,
@@ -220,6 +212,82 @@ def _edge_label(parent: ET.Element, label: str | None, position: Point) -> None:
         )
 
 
+def _render_node(parent: ET.Element, node: Node, bounds: Rect, highlighted: bool) -> None:
+    css_class = f"node-box role-{node.role}" + (" highlight" if highlighted else "")
+    _add(
+        parent,
+        "title",
+        text=" — ".join(text for text in (node.label, node.tag, node.sublabel) if text),
+    )
+    if node.shape == "merge":
+        _add(
+            parent,
+            "circle",
+            {"class": "merge", "cx": str(bounds.center_x), "cy": str(bounds.center_y), "r": "8"},
+        )
+        return
+    if node.shape == "decision":
+        _add(
+            parent,
+            "polygon",
+            {
+                "class": css_class,
+                "points": (
+                    f"{bounds.center_x},{bounds.y} {bounds.right},{bounds.center_y} "
+                    f"{bounds.center_x},{bounds.bottom} {bounds.x},{bounds.center_y}"
+                ),
+            },
+        )
+        label_bounds = Rect(
+            bounds.x + bounds.width // 4,
+            bounds.y + bounds.height // 4,
+            bounds.width // 2,
+            bounds.height // 2,
+        )
+    else:
+        _add(
+            parent,
+            "rect",
+            {
+                "class": css_class,
+                "x": str(bounds.x),
+                "y": str(bounds.y),
+                "width": str(bounds.width),
+                "height": str(bounds.height),
+                "rx": "20" if node.shape == "terminal" else "6",
+            },
+        )
+        top = 16 if node.tag or highlighted else 0
+        bottom = 20 if node.sublabel else 0
+        label_bounds = Rect(bounds.x, bounds.y + top, bounds.width, bounds.height - top - bottom)
+        if node.tag or highlighted:
+            _add(
+                parent,
+                "text",
+                {"class": "node-tag", "x": str(bounds.x + 12), "y": str(bounds.y + 14)},
+                ellipsize(node.tag or "FOCUS", bounds.width - 24, 8, "mono"),
+            )
+        if node.sublabel:
+            _add(
+                parent,
+                "text",
+                {
+                    "class": "node-sublabel",
+                    "x": str(bounds.center_x),
+                    "y": str(bounds.bottom - 10),
+                    "text-anchor": "middle",
+                },
+                ellipsize(node.sublabel, bounds.width - 24, 9, "mono"),
+            )
+    _text_in_box(parent, node.label or node.id, label_bounds)
+
+
+def _edge_style(kind: str, arrow_id: str) -> tuple[str, str]:
+    return ("" if kind == "normal" else f" kind-{kind}"), (
+        f"{arrow_id}-{kind}" if kind in {"async", "primary"} else arrow_id
+    )
+
+
 def _render_layered(parent: ET.Element, layout: LayoutResult, arrow_id: str) -> None:
     labels = {node.id: node.label for node in layout.nodes}
     for group in layout.groups:
@@ -241,7 +309,7 @@ def _render_layered(parent: ET.Element, layout: LayoutResult, arrow_id: str) -> 
             group_element,
             "text",
             {"class": "group-label", "x": str(bounds.x + 12), "y": str(bounds.y + 18)},
-            _ellipsize(group.name, max(6, (bounds.width - 24) // 7)),
+            ellipsize(group.name, bounds.width - 24, 11),
         )
 
     for edge in layout.edges:
@@ -250,50 +318,108 @@ def _render_layered(parent: ET.Element, layout: LayoutResult, arrow_id: str) -> 
             "g",
             {"aria-label": f"{labels[edge.source]} to {labels[edge.target]}"},
         )
-        css_class = "edge feedback" if edge.feedback else "edge"
+        extra, marker_id = _edge_style(edge.edge.kind, arrow_id)
+        css_class = ("edge feedback" if edge.feedback else "edge") + extra
         _add(
             edge_group,
             "path",
             {
                 "class": css_class,
                 "d": _rounded_path(edge.points),
-                "marker-end": f"url(#{arrow_id})",
+                "marker-end": f"url(#{marker_id})",
             },
         )
-        _edge_label(edge_group, edge.label, edge.label_position)
+
+    # A paper-backed hop makes crossing strokes visibly independent.
+    crossings: set[tuple[int, int]] = set()
+    for horizontal in layout.edges:
+        for a, b in pairwise(horizontal.points):
+            if a.y != b.y:
+                continue
+            for vertical in layout.edges:
+                if horizontal is vertical:
+                    continue
+                for c, d in pairwise(vertical.points):
+                    if (
+                        c.x != d.x
+                        or not min(a.x, b.x) + 10 < c.x < max(a.x, b.x) - 10
+                        or not min(c.y, d.y) + 10 < a.y < max(c.y, d.y) - 10
+                    ):
+                        continue
+                    if (c.x, a.y) in crossings:
+                        continue
+                    crossings.add((c.x, a.y))
+                    _add(
+                        parent,
+                        "path",
+                        {
+                            "class": "crossing-halo",
+                            "d": f"M {c.x - 6} {a.y} H {c.x + 6}",
+                        },
+                    )
+                    _add(
+                        parent,
+                        "path",
+                        {
+                            "class": ("edge feedback" if vertical.feedback else "edge")
+                            + _edge_style(vertical.edge.kind, arrow_id)[0],
+                            "d": f"M {c.x} {a.y - 4} V {a.y + 4}",
+                        },
+                    )
+                    path = f"M {c.x - 6} {a.y} Q {c.x} {a.y - 12} {c.x + 6} {a.y}"
+                    _add(parent, "path", {"class": "crossing-halo", "d": path})
+                    _add(
+                        parent,
+                        "path",
+                        {
+                            "class": ("edge feedback" if horizontal.feedback else "edge")
+                            + _edge_style(horizontal.edge.kind, arrow_id)[0],
+                            "d": path,
+                        },
+                    )
+    for edge in layout.edges:
+        _edge_label(parent, edge.label, edge.label_position)
 
     for node in layout.nodes:
         bounds = node.bounds
         node_group = _add(parent, "g", {"aria-label": f"Node {node.label}"})
-        css_class = "node-box highlight" if node.highlighted else "node-box"
-        _add(
-            node_group,
-            "rect",
-            {
-                "class": css_class,
-                "x": str(bounds.x),
-                "y": str(bounds.y),
-                "width": str(bounds.width),
-                "height": str(bounds.height),
-                "rx": "6",
-            },
-        )
-        if node.highlighted:
-            _add(
-                node_group,
-                "text",
-                {
-                    "class": "subtitle",
-                    "x": str(bounds.x + 10),
-                    "y": str(bounds.y + 14),
-                },
-                "FOCUS",
-            )
-        _text_in_box(node_group, node.label, bounds)
+        _render_node(node_group, node.node, bounds, node.highlighted)
 
 
 def _render_sequence(parent: ET.Element, layout: LayoutResult, arrow_id: str) -> None:
     labels = {participant.id: participant.label for participant in layout.participants}
+    for frame in layout.frames:
+        b = frame.bounds
+        _add(
+            parent,
+            "rect",
+            {
+                "class": "fragment",
+                "x": str(b.x),
+                "y": str(b.y),
+                "width": str(b.width),
+                "height": str(b.height),
+                "rx": "4",
+            },
+        )
+        _add(
+            parent,
+            "text",
+            {"class": "node-tag", "x": str(b.x + 12), "y": str(b.y + 16)},
+            frame.fragment.operator.upper(),
+        )
+        if frame.divider_y is not None:
+            _add(
+                parent,
+                "line",
+                {
+                    "class": "lifeline",
+                    "x1": str(b.x),
+                    "x2": str(b.right),
+                    "y1": str(frame.divider_y),
+                    "y2": str(frame.divider_y),
+                },
+            )
     for participant in layout.participants:
         bounds = participant.bounds
         group = _add(parent, "g", {"aria-label": f"Participant {participant.label}"})
@@ -308,49 +434,60 @@ def _render_sequence(parent: ET.Element, layout: LayoutResult, arrow_id: str) ->
                 "y2": str(participant.lifeline_bottom),
             },
         )
-        css_class = "node-box highlight" if participant.highlighted else "node-box"
+        _render_node(group, participant.node, bounds, participant.highlighted)
+
+    for activation in layout.diagram.activations:
+        actor = layout.participant_map[activation.participant]
+        start = (
+            layout.messages[activation.start - 1].y
+            if activation.start
+            else layout.messages[0].y - 8
+        )
+        end = max(point.y for point in layout.messages[activation.end - 1].points) + 8
+        depth = sum(
+            other.participant == activation.participant
+            and other != activation
+            and other.start <= activation.start
+            and activation.end <= other.end
+            for other in layout.diagram.activations
+        )
         _add(
-            group,
+            parent,
             "rect",
             {
-                "class": css_class,
-                "x": str(bounds.x),
-                "y": str(bounds.y),
-                "width": str(bounds.width),
-                "height": str(bounds.height),
-                "rx": "6",
+                "class": "activation",
+                "x": str(actor.lifeline_x - 4 + depth * 4),
+                "y": str(start),
+                "width": "8",
+                "height": str(end - start),
             },
         )
-        if participant.highlighted:
+    # Guards sit above lifelines, with a paper halo protecting their letterforms.
+    for frame in layout.frames:
+        guards = [(frame.fragment.guard, frame.bounds.y + 36)]
+        if frame.divider_y is not None:
+            guards.append((frame.fragment.else_guard, frame.divider_y + 24))
+        for guard, y in guards:
             _add(
-                group,
+                parent,
                 "text",
-                {
-                    "class": "subtitle",
-                    "x": str(bounds.x + 10),
-                    "y": str(bounds.y + 14),
-                },
-                "FOCUS",
+                {"class": "edge-label fragment-guard", "x": str(frame.bounds.x + 12), "y": str(y)},
+                ellipsize(f"[{guard}]", frame.bounds.width - 24, 11, "mono"),
             )
-        _text_in_box(group, participant.label, bounds)
-
     for message in layout.messages:
         group = _add(
             parent,
             "g",
-            {
-                "aria-label": (
-                    f"Message {labels[message.source]} to {labels[message.target]}"
-                )
-            },
+            {"aria-label": (f"Message {labels[message.source]} to {labels[message.target]}")},
         )
+        extra, marker_id = _edge_style(message.edge.kind, arrow_id)
         _add(
             group,
             "path",
             {
-                "class": "message",
+                "class": "message" + extra,
                 "d": _rounded_path(message.points),
-                "marker-end": f"url(#{arrow_id})",
+                "marker-end": f"url(#{marker_id})",
             },
         )
         _edge_label(group, message.label, message.label_position)
@@ -361,27 +498,41 @@ def render_svg(
     *,
     embed_fonts: bool = True,
     theme: Theme = EDITORIAL_LIGHT,
+    id_prefix: str | None = None,
+    size: str = "fit",
 ) -> str:
     """Render a validated diagram model to a self-contained SVG string."""
 
-    if len(diagram.nodes) > 20 or len(diagram.edges) > 40:
+    if len(diagram.nodes) > 9 or len(diagram.edges) > 12 or len(diagram.highlights) > 2:
         warnings.warn(
             "diagram exceeds the editorial density budget; consider splitting it",
             DiagramDensityWarning,
             stacklevel=2,
         )
     layout = layout_diagram(diagram)
-    width = max(MIN_CANVAS_WIDTH, layout.width)
-    height = layout.height + HEADER_HEIGHT + FOOTER_HEIGHT
-    fingerprint = _fingerprint(diagram)
-    title_id = f"nodelace-{fingerprint}-title"
-    description_id = f"nodelace-{fingerprint}-description"
-    arrow_id = f"nodelace-{fingerprint}-arrow"
+    footer = footer_height(diagram)
+    width, height, scale = frame_size(layout.width, layout.height, size, footer)
+    preferred_scale = 4 / 3 if size in {"slide-16x9", "social-square"} else 1
+    if scale < preferred_scale:
+        warnings.warn(
+            "diagram is too large for the requested size; split it or use size='fit'",
+            DiagramDensityWarning,
+            stacklevel=2,
+        )
+    if id_prefix is not None and re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]*", id_prefix) is None:
+        raise ValueError(
+            "id_prefix must start with a letter and contain only letters, digits, - or _"
+        )
+    scope = id_prefix or f"nodelace-{_fingerprint(diagram, theme, size)}"
+    title_id = f"{scope}-title"
+    description_id = f"{scope}-description"
+    arrow_id = f"{scope}-arrow"
 
     root = ET.Element(
         _tag("svg"),
         {
             "xmlns": SVG_NAMESPACE,
+            "id": scope,
             "viewBox": f"0 0 {width} {height}",
             "width": str(width),
             "height": str(height),
@@ -393,7 +544,14 @@ def render_svg(
     _add(root, "title", {"id": title_id}, _title(diagram))
     _add(root, "desc", {"id": description_id}, _description(diagram))
     definitions = _add(root, "defs")
-    _add(definitions, "style", {"type": "text/css"}, svg_css(theme, embed_fonts=embed_fonts))
+    _add(
+        definitions,
+        "style",
+        {"type": "text/css"},
+        svg_css(theme, embed_fonts=embed_fonts, scope=scope),
+    )
+    if preferred_scale > 1:
+        _add(definitions, "style", text=f"#{scope} .title{{font-size:40px}}")
     marker = _add(
         definitions,
         "marker",
@@ -407,7 +565,26 @@ def render_svg(
             "orient": "auto-start-reverse",
         },
     )
-    _add(marker, "path", {"d": "M 0 0 L 10 5 L 0 10 z", "fill": theme.ink})
+    _add(marker, "path", {"d": "M 0 0 L 10 5 L 0 10 z", "fill": theme.muted})
+    for kind, color in (("async", theme.muted), ("primary", theme.accent)):
+        variant = _add(
+            definitions,
+            "marker",
+            {
+                **marker.attrib,
+                "id": f"{arrow_id}-{kind}",
+            },
+        )
+        _add(
+            variant,
+            "path",
+            {
+                "d": "M 0 0 L 10 5 L 0 10" + ("" if kind == "async" else " z"),
+                "fill": "none" if kind == "async" else color,
+                "stroke": color,
+                "stroke-width": "1.2",
+            },
+        )
     metadata = f"Generated by Nodelace {__version__}; no AI or network used."
     if embed_fonts:
         metadata += "\n\nBundled font notices and licenses:\n" + embedded_font_license_notice()
@@ -428,14 +605,59 @@ def render_svg(
         root,
         "text",
         {"class": "title", "x": "48", "y": "72"},
-        _ellipsize(_title(diagram), max(10, (width - 96) // 14)),
+        ellipsize(_title(diagram), width - 96, 40 if preferred_scale > 1 else 28, "serif"),
     )
 
-    content = _add(root, "g", {"transform": f"translate(0 {HEADER_HEIGHT})"})
+    dx = (width - layout.width * scale) / 2 if size != "fit" else 0
+    dy = HEADER_HEIGHT + (
+        (height - HEADER_HEIGHT - footer - layout.height * scale) / 2 if size != "fit" else 0
+    )
+    transform = f"translate({dx:g} {dy:g})" + (f" scale({scale:.6f})" if scale != 1 else "")
+    content = _add(root, "g", {"transform": transform})
     if layout.kind == "sequence":
         _render_sequence(content, layout, arrow_id)
     else:
         _render_layered(content, layout, arrow_id)
+    for index, entry in enumerate(legend_entries(diagram)):
+        x = 48 + (index % 4) * ((width - 96) // 4)
+        y = height - footer + (index // 4) * 24
+        css_class = "node-box" + (" highlight" if entry == "Focus" else "")
+        if entry.lower() in {"return", "async", "primary", "call"}:
+            extra, marker_id = _edge_style(entry.lower(), arrow_id)
+            _add(
+                root,
+                "path",
+                {
+                    "class": "edge" + extra,
+                    "d": f"M {x} {y} h 20",
+                    "marker-end": f"url(#{marker_id})",
+                },
+            )
+        elif entry == "Decision":
+            _add(
+                root,
+                "polygon",
+                {
+                    "class": css_class,
+                    "points": f"{x},{y} {x + 10},{y - 6} {x + 20},{y} {x + 10},{y + 6}",
+                },
+            )
+        elif entry == "Merge":
+            _add(root, "circle", {"class": "merge", "cx": str(x + 10), "cy": str(y), "r": "4"})
+        else:
+            _add(
+                root,
+                "rect",
+                {
+                    "class": css_class + f" role-{entry.lower()}",
+                    "x": str(x),
+                    "y": str(y - 6),
+                    "width": "20",
+                    "height": "12",
+                    "rx": "6" if entry == "Terminal" else "2",
+                },
+            )
+        _add(root, "text", {"class": "legend", "x": str(x + 28), "y": str(y + 4)}, entry)
     _add(
         root,
         "text",
@@ -453,23 +675,32 @@ def render_html(
     *,
     embed_fonts: bool = True,
     theme: Theme = EDITORIAL_LIGHT,
+    id_prefix: str | None = None,
+    size: str = "fit",
 ) -> str:
     """Render a diagram as a static, script-free, self-contained HTML document."""
 
-    svg = render_svg(diagram, embed_fonts=embed_fonts, theme=theme).split("\n", 1)[1]
+    svg = render_svg(
+        diagram, embed_fonts=embed_fonts, theme=theme, id_prefix=id_prefix, size=size
+    ).split("\n", 1)[1]
+    width = ET.fromstring(svg).attrib["width"]
     title = html.escape(_title(diagram), quote=True)
     return (
         "<!doctype html>\n"
         '<html lang="en">\n<head>\n<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width,initial-scale=1">\n'
         '<meta http-equiv="Content-Security-Policy" '
-        'content="default-src \'none\'; style-src \'unsafe-inline\'; font-src data:">\n'
+        "content=\"default-src 'none'; style-src 'unsafe-inline'; font-src data:\">\n"
         f"<title>{title}</title>\n"
         f"<style>html,body{{margin:0;background:{theme.paper}}}"
-        "main{display:grid;min-height:100vh;"
-        "place-items:center;padding:24px;box-sizing:border-box}svg{display:block;max-width:100%;"
-        "height:auto}</style>\n</head>\n<body>\n<main>\n"
-        f"{svg}\n</main>\n</body>\n</html>\n"
+        "main{min-width:0;max-width:100%;padding:24px;box-sizing:border-box}"
+        ".diagram-container{max-width:100%;overflow-x:auto}"
+        f"svg{{display:block;width:{width}px;min-width:{width}px;height:auto;margin:auto}}"
+        "@media print{main{padding:0}.diagram-container{overflow:visible}"
+        "svg{min-width:0;width:100%;max-width:100%}}"
+        "</style>\n</head>\n<body>\n<main>\n"
+        f'<div class="diagram-container" tabindex="0" role="region" '
+        f'aria-label="Scrollable diagram: {title}">{svg}</div>\n</main>\n</body>\n</html>\n'
     )
 
 
@@ -479,23 +710,27 @@ def render(
     format: Literal["svg", "html"] = "svg",
     embed_fonts: bool = True,
     theme: Theme = EDITORIAL_LIGHT,
+    id_prefix: str | None = None,
+    size: str = "fit",
 ) -> str:
     """Parse DSL text when needed and render it as SVG or HTML."""
 
     diagram = parse_diagram(source) if isinstance(source, str) else source
     if format == "svg":
-        return render_svg(diagram, embed_fonts=embed_fonts, theme=theme)
+        return render_svg(
+            diagram, embed_fonts=embed_fonts, theme=theme, id_prefix=id_prefix, size=size
+        )
     if format == "html":
-        return render_html(diagram, embed_fonts=embed_fonts, theme=theme)
+        return render_html(
+            diagram, embed_fonts=embed_fonts, theme=theme, id_prefix=id_prefix, size=size
+        )
     raise ValueError("format must be 'svg' or 'html'")
 
 
 def _resolved_format(output: Path | None, requested: str | None) -> Literal["svg", "html"]:
     error_source = str(output) if output is not None else "<options>"
     if requested is not None and requested not in {"svg", "html"}:
-        raise DiagramValidationError(
-            "format must be 'svg' or 'html'", source_name=error_source
-        )
+        raise DiagramValidationError("format must be 'svg' or 'html'", source_name=error_source)
     suffix_format = output.suffix.lower().removeprefix(".") if output is not None else ""
     if suffix_format and suffix_format not in {"svg", "html"}:
         raise DiagramValidationError(
@@ -519,9 +754,7 @@ def _read_source_file(path: Path) -> str:
             descriptor = -1
             file_status = os.fstat(stream.fileno())
             if not stat.S_ISREG(file_status.st_mode):
-                raise DiagramValidationError(
-                    "input must be a regular file", source_name=str(path)
-                )
+                raise DiagramValidationError("input must be a regular file", source_name=str(path))
             payload = stream.read(MAX_SOURCE_BYTES + 1)
     finally:
         if descriptor >= 0:
@@ -671,14 +904,12 @@ def _publish_no_clobber(temporary: Path, path: Path) -> None:
     temporary.unlink()
 
 
-def _atomic_write(path: Path, content: str, *, replace: bool) -> None:
+def _atomic_write(path: Path, content: str | bytes, *, replace: bool) -> None:
     path.parent.resolve(strict=True)
     existing_status = _require_regular_output(path)
     if existing_status is not None and not replace:
         raise _output_conflict(path)
-    existing_mode = (
-        stat.S_IMODE(existing_status.st_mode) if existing_status is not None else None
-    )
+    existing_mode = stat.S_IMODE(existing_status.st_mode) if existing_status is not None else None
     descriptor, temporary = _temporary_file(
         path, existing_mode if existing_mode is not None else 0o666
     )
@@ -688,7 +919,10 @@ def _atomic_write(path: Path, content: str, *, replace: bool) -> None:
                 os.fchmod(descriptor, existing_mode)
             else:  # pragma: no cover - Windows lacks POSIX fchmod
                 os.chmod(temporary, existing_mode)
-        with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as stream:
+        options = {} if isinstance(content, bytes) else {"encoding": "utf-8", "newline": "\n"}
+        with os.fdopen(
+            descriptor, "wb" if isinstance(content, bytes) else "w", **options
+        ) as stream:
             descriptor = -1
             stream.write(content)
             stream.flush()
@@ -716,6 +950,8 @@ def render_file(
     force: bool = False,
     embed_fonts: bool = True,
     theme: Theme = EDITORIAL_LIGHT,
+    id_prefix: str | None = None,
+    size: str = "fit",
 ) -> Path:
     """Render a UTF-8 file with atomic replacement and protected publication.
 
@@ -748,6 +984,8 @@ def render_file(
         format=selected_format,
         embed_fonts=embed_fonts,
         theme=theme,
+        id_prefix=id_prefix,
+        size=size,
     )
     _atomic_write(destination, content, replace=explicit_output is None or force)
     return destination

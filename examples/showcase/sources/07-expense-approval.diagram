@@ -1,0 +1,9 @@
+flow "A clear expense decision"
+node Receipt shape=terminal label="Expense submitted"
+node Policy shape=decision label="Within policy?"
+node Pay shape=terminal label="Approve payment"
+node Review shape=terminal label="Request review"
+Receipt -> Policy
+Policy => Pay: yes
+Policy -> Review: no
+highlight Pay

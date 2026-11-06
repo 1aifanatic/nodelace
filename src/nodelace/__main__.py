@@ -3,4 +3,3 @@
 from nodelace.cli import main
 
 raise SystemExit(main())
-

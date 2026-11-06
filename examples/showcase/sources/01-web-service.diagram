@@ -1,0 +1,10 @@
+architecture "A small web service"
+node Browser role=external tag=WEB sublabel="Customer interface"
+node API role=backend tag=CORE sublabel="Request handling"
+node Database role=store tag=SQL sublabel="Durable records"
+node Cache role=optional tag=FAST sublabel="Recent responses"
+Browser -> API: HTTPS
+API => Database: read and write
+API -> Cache: lookup
+group Runtime: API, Database, Cache
+highlight API

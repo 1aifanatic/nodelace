@@ -1,0 +1,116 @@
+[
+  {
+    "id": "architecture-light",
+    "title": "architecture / light",
+    "source": "sources/architecture.diagram",
+    "size": "fit",
+    "theme": "light"
+  },
+  {
+    "id": "architecture-dark",
+    "title": "architecture / dark",
+    "source": "sources/architecture.diagram",
+    "size": "fit",
+    "theme": "dark"
+  },
+  {
+    "id": "architecture-blueprint",
+    "title": "architecture / blueprint",
+    "source": "sources/architecture.diagram",
+    "size": "fit",
+    "profile": "blueprint.toml"
+  },
+  {
+    "id": "flow-light",
+    "title": "flow / light",
+    "source": "sources/flow.diagram",
+    "size": "fit",
+    "theme": "light"
+  },
+  {
+    "id": "flow-dark",
+    "title": "flow / dark",
+    "source": "sources/flow.diagram",
+    "size": "fit",
+    "theme": "dark"
+  },
+  {
+    "id": "flow-blueprint",
+    "title": "flow / blueprint",
+    "source": "sources/flow.diagram",
+    "size": "fit",
+    "profile": "blueprint.toml"
+  },
+  {
+    "id": "sequence-light",
+    "title": "sequence / light",
+    "source": "sources/sequence.diagram",
+    "size": "fit",
+    "expectedWarnings": [
+      "fragments"
+    ],
+    "theme": "light"
+  },
+  {
+    "id": "sequence-dark",
+    "title": "sequence / dark",
+    "source": "sources/sequence.diagram",
+    "size": "fit",
+    "expectedWarnings": [
+      "fragments"
+    ],
+    "theme": "dark"
+  },
+  {
+    "id": "sequence-blueprint",
+    "title": "sequence / blueprint",
+    "source": "sources/sequence.diagram",
+    "size": "fit",
+    "expectedWarnings": [
+      "fragments"
+    ],
+    "profile": "blueprint.toml"
+  },
+  {
+    "id": "canvas-fit",
+    "title": "Canvas / fit",
+    "source": "sources/canvas.diagram",
+    "theme": "light",
+    "size": "fit"
+  },
+  {
+    "id": "canvas-doc-inline",
+    "title": "Canvas / doc-inline",
+    "source": "sources/canvas.diagram",
+    "theme": "light",
+    "size": "doc-inline"
+  },
+  {
+    "id": "canvas-doc-wide",
+    "title": "Canvas / doc-wide",
+    "source": "sources/canvas.diagram",
+    "theme": "light",
+    "size": "doc-wide"
+  },
+  {
+    "id": "canvas-slide-16x9",
+    "title": "Canvas / slide-16x9",
+    "source": "sources/canvas.diagram",
+    "theme": "light",
+    "size": "slide-16x9"
+  },
+  {
+    "id": "canvas-social-square",
+    "title": "Canvas / social-square",
+    "source": "sources/canvas.diagram",
+    "theme": "light",
+    "size": "social-square"
+  },
+  {
+    "id": "canvas-print-a4",
+    "title": "Canvas / print-a4",
+    "source": "sources/canvas.diagram",
+    "theme": "light",
+    "size": "print-a4"
+  }
+]

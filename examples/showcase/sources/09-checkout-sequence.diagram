@@ -1,0 +1,13 @@
+sequence "Checkout and an optional receipt"
+node Customer role=external tag=WEB
+node Shop role=backend tag=CORE
+node Mail role=optional tag=EMAIL
+call Customer -> Shop: place order
+activate Shop
+Shop -> Shop: reserve stock
+Shop --> Customer: order confirmed
+opt "receipts enabled"
+Shop ~> Mail: send receipt
+end
+deactivate Shop
+highlight Shop

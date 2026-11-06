@@ -1,0 +1,113 @@
+{
+  "version": "0.3.0",
+  "results": [
+    {
+      "id": "architecture-light",
+      "width": 1036,
+      "height": 712,
+      "diagnostics": []
+    },
+    {
+      "id": "architecture-dark",
+      "width": 1036,
+      "height": 712,
+      "diagnostics": []
+    },
+    {
+      "id": "architecture-blueprint",
+      "width": 1036,
+      "height": 712,
+      "diagnostics": []
+    },
+    {
+      "id": "flow-light",
+      "width": 640,
+      "height": 1024,
+      "diagnostics": []
+    },
+    {
+      "id": "flow-dark",
+      "width": 640,
+      "height": 1024,
+      "diagnostics": []
+    },
+    {
+      "id": "flow-blueprint",
+      "width": 640,
+      "height": 1024,
+      "diagnostics": []
+    },
+    {
+      "id": "sequence-light",
+      "width": 680,
+      "height": 1048,
+      "diagnostics": [
+        {
+          "code": "fragments",
+          "message": "prefer one sequence fragment per diagram",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "id": "sequence-dark",
+      "width": 680,
+      "height": 1048,
+      "diagnostics": [
+        {
+          "code": "fragments",
+          "message": "prefer one sequence fragment per diagram",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "id": "sequence-blueprint",
+      "width": 680,
+      "height": 1048,
+      "diagnostics": [
+        {
+          "code": "fragments",
+          "message": "prefer one sequence fragment per diagram",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "id": "canvas-fit",
+      "width": 640,
+      "height": 360,
+      "diagnostics": []
+    },
+    {
+      "id": "canvas-doc-inline",
+      "width": 960,
+      "height": 600,
+      "diagnostics": []
+    },
+    {
+      "id": "canvas-doc-wide",
+      "width": 1280,
+      "height": 720,
+      "diagnostics": []
+    },
+    {
+      "id": "canvas-slide-16x9",
+      "width": 1280,
+      "height": 720,
+      "diagnostics": []
+    },
+    {
+      "id": "canvas-social-square",
+      "width": 1080,
+      "height": 1080,
+      "diagnostics": []
+    },
+    {
+      "id": "canvas-print-a4",
+      "width": 1120,
+      "height": 792,
+      "diagnostics": []
+    }
+  ]
+}

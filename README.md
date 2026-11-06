@@ -1,277 +1,440 @@
 # Nodelace
 
-Nodelace turns a small, readable text format into polished architecture, flow,
-and sequence diagrams. It is deterministic, works entirely on your machine,
-and produces SVG by default. HTML output is available when a self-contained
-page is more convenient.
+**Turn a short text description into a diagram, locally.** Nodelace generates
+architecture diagrams, flowcharts, and sequence diagrams as SVG, standalone HTML,
+or optional PNG. It chooses the layout, routes the connectors, and embeds the fonts.
+You write the relationships; you do not need to position every node or write SVG.
 
-Nodelace does not call an AI model, access the network, send telemetry, or
-upload your diagram text. The base package has no runtime dependencies and
-requires Python 3.11 or newer.
+Rendering makes no model calls and requires no API key or rendering service.
+The same renderer is available for Python and Node.js.
 
-## Quick start
+![Architecture diagram in the light theme](examples/showcase/rendered/01-web-service-light.png)
 
-Install it from PyPI:
+## Choose your package
 
-```console
-python -m pip install nodelace
+| | Python | Node.js / npm |
+|---|---|---|
+| Required runtime | Python 3.11+ | Node.js 22+; no Python installation |
+| Install | From the Python repository below | `npm install nodelace` |
+| Version documented here | 0.3.0 | 0.3.0, published on npm |
+| SVG and HTML dependencies | Python standard library only | Local Pyodide WebAssembly runtime, about 14 MB installed |
+| PNG dependencies | Optional Playwright + Chromium | Optional Playwright + Chromium |
+| Dedicated guide and examples | [nodelace-python](https://github.com/1aifanatic/nodelace-python) | [nodelace-node](https://github.com/1aifanatic/nodelace-node) |
+
+**Python 0.3.0 is not published to PyPI yet.** Use the source installation below;
+`pip install nodelace` is not the installation path documented for this release.
+The [npm package](https://www.npmjs.com/package/nodelace) is publicly available.
+This repository contains the shared implementation; the two guides provide
+language-specific setup and runnable examples.
+
+## Install and render your first diagram
+
+### Python
+
+Clone the Python package and create an isolated environment:
+
+```sh
+git clone https://github.com/1aifanatic/nodelace-python.git
+cd nodelace-python
+python -m venv .venv
 ```
 
-Create `system.diagram`:
+Activate it using the command for your shell:
+
+```powershell
+# Windows PowerShell
+.\.venv\Scripts\Activate.ps1
+```
+
+```sh
+# macOS / Linux
+source .venv/bin/activate
+```
+
+Install from the checkout:
+
+```sh
+python -m pip install .
+python -m nodelace --version
+```
+
+If your system uses `python3`, use it when creating the environment. On Windows,
+`py -3` also works. Activation is optional: run the environment's Python directly,
+for example `.venv\Scripts\python.exe` on Windows.
+
+Save this UTF-8 text as `system.diagram`:
 
 ```text
-architecture "Small Web Service"
-direction left-to-right
-
+architecture "Order service"
+node Browser role=external tag=WEB
+node API role=backend tag=CORE sublabel="Handle requests"
+node Orders role=store tag=SQL
 Browser -> API: HTTPS
-API -> Database: query
+API => Orders: save order
 highlight API
 ```
 
-Check it, then render it:
+Validate it and create both formats:
 
-```console
-nodelace check system.diagram
-nodelace render system.diagram
-```
-
-The render command writes `system.svg` when no output path or format is given.
-That derived sibling is treated as a build artifact and is atomically replaced
-on later renders. Use `-o` to choose an explicit path, `--format html` for a
-standalone HTML page, and `--force` to replace an existing explicit output:
-
-```console
-nodelace render system.diagram -o docs/system.svg
-nodelace render system.diagram --format html -o docs/system.html
-```
-
-## Language at a glance
-
-A document normally starts with a diagram kind and a quoted title:
-
-```text
-architecture "Service Map"
-flow "Release Decision"
-sequence "Sign-In Request"
-```
-
-The header is optional for tiny flow diagrams; omission means `flow` with no
-title. Explicit headers are recommended in saved project files.
-
-The rest of the language is intentionally small:
-
-```text
-direction left-to-right
-A -> B -> C
-C -> D: stores result
-group Services: B, C
-highlight C
-```
-
-- `architecture` shows components and their connections.
-- `flow` shows steps, branches, and feedback paths.
-- `sequence` treats edges as messages in source order, with time flowing down.
-- `direction left-to-right|top-to-bottom` controls architecture and flow layout.
-- A chain is shorthand for consecutive edges.
-- A label follows the final colon on a single edge.
-- Groups are flat visual regions. Highlights mark focal nodes.
-
-See [the DSL reference](docs/DSL.md) for the complete syntax and validation
-rules.
-
-## Command line
-
-```text
-nodelace render INPUT [-o OUTPUT] [--format svg|html] [--force] [--system-fonts]
-nodelace check INPUT
-nodelace --version
-```
-
-`render` uses SVG unless the format is selected explicitly or inferred from an
-`.html` output path. With no `-o`, it atomically replaces the derived sibling
-output. An explicitly named output is protected and requires `--force` when it
-already exists. `check` parses and validates a source file without creating
-output. Syntax and validation errors include source locations and return a
-nonzero exit status.
-
-Outputs embed Nodelace's bundled fonts by default. `--system-fonts` omits that
-data for a smaller file, at the cost of portable typography.
-
-The module entry point is equivalent to the installed command:
-
-```console
+```sh
+python -m nodelace check system.diagram --layout --strict
 python -m nodelace render system.diagram
+python -m nodelace render system.diagram --theme dark --format html
 ```
 
-## Python API
+The commands create `system.svg` and `system.html`. Open the HTML file directly
+in your browser. The installed `nodelace` command is equivalent to
+`python -m nodelace`.
 
-`render` accepts DSL text or a parsed `Diagram`. A string is always treated as
-source text, never guessed to be a path.
+### Node.js / npm
 
-```python
-from nodelace import parse_diagram, render, render_file
+Run these commands in your Node.js project:
 
-source = '''architecture "Job Runner"
-direction left-to-right
-Queue -> Worker -> Store
-highlight Worker
-'''
-
-svg = render(source)
-html = render(source, format="html")
-
-diagram = parse_diagram(source)
-same_svg = render(diagram)
-
-output = render_file("system.diagram")
-html_output = render_file(
-    "system.diagram",
-    "system.html",
-    format="html",
-    force=True,
-)
+```sh
+npm install nodelace
+npx nodelace init architecture -o system.diagram
+npx nodelace check system.diagram --layout --strict
+npx nodelace render system.diagram
+npx nodelace render system.diagram --theme dark --format html
 ```
 
-`render_file` follows the CLI's output policy: its derived sibling output is
-atomically replaceable, while an existing explicit `output_path` requires
-`force=True`. Nodelace refuses to replace directories, links, devices, and
-other non-regular filesystem entries. On a filesystem without hard-link
-support, the first write to an explicit output remains no-clobber but may be
-observable while its final bytes are copied into place.
+The npm CLI includes `init architecture`, `init flow`, and `init sequence`
+starter templates. Python users create a source file or copy a supplied example.
+For a global CLI, use `npm install -g nodelace`, then run `nodelace` directly.
 
-Lower-level renderers are also public:
+## What can you create?
 
-```python
-from nodelace import parse_diagram, render_html, render_svg
+Nodelace supports **three diagram types**. Every type supports both built-in
+themes, custom color profiles, SVG/HTML output, and optional PNG export.
 
-diagram = parse_diagram('flow "Two Steps"\nStart -> Finish')
-svg = render_svg(diagram)
-html = render_html(diagram)
-```
+| Type | Useful for | Supported features |
+|---|---|---|
+| `architecture` | Service maps, event pipelines, integrations, AI application architecture | Directed connections, labels, flat groups, roles, tags, sublabels, highlights |
+| `flow` | Approvals, release gates, support triage, operational procedures | Decisions, terminals, merges, branching, joins, feedback paths, flat groups |
+| `sequence` | API exchanges, authentication, checkout, retries | Ordered calls, returns, asynchronous messages, self-calls, explicit activations, ALT / OPT / LOOP fragments |
 
-The public signatures are:
+![Flowchart in the light theme](examples/showcase/rendered/05-release-gate-light.png)
+
+![Sequence diagram in the dark theme](examples/showcase/rendered/08-sign-in-sequence-dark.png)
+
+Architecture and flow layouts can run `left-to-right` or `top-to-bottom`.
+Sequence diagrams place participants horizontally and messages in time order
+from top to bottom. See the [complete language reference](docs/DSL.md).
+
+### Syntax you will use most
 
 ```text
-parse_diagram(source, *, source_name="<string>") -> Diagram
-render(source, *, format="svg", embed_fonts=True, theme=EDITORIAL_LIGHT) -> str
-render_svg(diagram, *, embed_fonts=True, theme=EDITORIAL_LIGHT) -> str
-render_html(diagram, *, embed_fonts=True, theme=EDITORIAL_LIGHT) -> str
-render_file(input_path, output_path=None, *, format=None, force=False,
-            embed_fonts=True, theme=EDITORIAL_LIGHT) -> Path
+flow "Release decision"
+direction top-to-bottom
+node Start shape=terminal
+node Review shape=decision label="Ready?"
+node Ship shape=terminal
+node Fix label="Resolve issues"
+Start -> Review
+Review => Ship: yes
+Review -> Fix: no
+Fix -> Review: retry
+highlight Ship
 ```
 
-The deterministic geometry seam is also public for integrations that want to
-inspect positions without serializing SVG:
+| Feature | Syntax / choices |
+|---|---|
+| Edge styles | `A -> B` ordinary, `A --> B` return, `A ~> B` asynchronous, `A => B` primary |
+| Explicit sequence call | `call Client -> API: request` |
+| Node shapes | `shape=box`, `terminal`, `decision`, `merge` |
+| Node roles | `role=default`, `backend`, `store`, `external`, `input`, `optional` |
+| Node annotation | `label="Visible name"`, `tag=API`, `sublabel="Short detail"` |
+| Flat group | `group Runtime: API, Worker, Database` |
+| Focus | `highlight API` |
+| Sequence activation | `activate API` and `deactivate API` around a nonempty message range |
+| Sequence fragment | `alt "guard"` / `else "other guard"` / `end`; `opt "guard"` / `end`; `loop "guard"` / `end` |
+
+Decision and merge shapes do not accept tags or sublabels. Sequence participants
+support box and terminal shapes. Fragment nesting supports one nested level;
+an ALT fragment needs two nonempty branches with explicit guards.
+
+## Ten complete examples
+
+Each example includes editable `.diagram` source and **light and dark SVG, HTML,
+and PNG files**. HTML embeds its fonts and opens offline. GitHub displays HTML
+source; download or clone the repository to open a rendered page.
+
+| Example | Type | Source | Light | Dark |
+|---|---|---|---|---|
+| 1. Small web service | Architecture | [DSL](examples/showcase/sources/01-web-service.diagram) | [HTML](examples/showcase/rendered/01-web-service-light.html) / [PNG](examples/showcase/rendered/01-web-service-light.png) | [HTML](examples/showcase/rendered/01-web-service-dark.html) / [PNG](examples/showcase/rendered/01-web-service-dark.png) |
+| 2. Event processing | Architecture | [DSL](examples/showcase/sources/02-event-processing.diagram) | [HTML](examples/showcase/rendered/02-event-processing-light.html) / [PNG](examples/showcase/rendered/02-event-processing-light.png) | [HTML](examples/showcase/rendered/02-event-processing-dark.html) / [PNG](examples/showcase/rendered/02-event-processing-dark.png) |
+| 3. Analytics pipeline | Architecture | [DSL](examples/showcase/sources/03-analytics-pipeline.diagram) | [HTML](examples/showcase/rendered/03-analytics-pipeline-light.html) / [PNG](examples/showcase/rendered/03-analytics-pipeline-light.png) | [HTML](examples/showcase/rendered/03-analytics-pipeline-dark.html) / [PNG](examples/showcase/rendered/03-analytics-pipeline-dark.png) |
+| 4. Assistant architecture | Architecture | [DSL](examples/showcase/sources/04-assistant-architecture.diagram) | [HTML](examples/showcase/rendered/04-assistant-architecture-light.html) / [PNG](examples/showcase/rendered/04-assistant-architecture-light.png) | [HTML](examples/showcase/rendered/04-assistant-architecture-dark.html) / [PNG](examples/showcase/rendered/04-assistant-architecture-dark.png) |
+| 5. Release gate | Flow | [DSL](examples/showcase/sources/05-release-gate.diagram) | [HTML](examples/showcase/rendered/05-release-gate-light.html) / [PNG](examples/showcase/rendered/05-release-gate-light.png) | [HTML](examples/showcase/rendered/05-release-gate-dark.html) / [PNG](examples/showcase/rendered/05-release-gate-dark.png) |
+| 6. Support triage | Flow | [DSL](examples/showcase/sources/06-support-triage.diagram) | [HTML](examples/showcase/rendered/06-support-triage-light.html) / [PNG](examples/showcase/rendered/06-support-triage-light.png) | [HTML](examples/showcase/rendered/06-support-triage-dark.html) / [PNG](examples/showcase/rendered/06-support-triage-dark.png) |
+| 7. Expense approval | Flow | [DSL](examples/showcase/sources/07-expense-approval.diagram) | [HTML](examples/showcase/rendered/07-expense-approval-light.html) / [PNG](examples/showcase/rendered/07-expense-approval-light.png) | [HTML](examples/showcase/rendered/07-expense-approval-dark.html) / [PNG](examples/showcase/rendered/07-expense-approval-dark.png) |
+| 8. Sign-in outcomes | Sequence | [DSL](examples/showcase/sources/08-sign-in-sequence.diagram) | [HTML](examples/showcase/rendered/08-sign-in-sequence-light.html) / [PNG](examples/showcase/rendered/08-sign-in-sequence-light.png) | [HTML](examples/showcase/rendered/08-sign-in-sequence-dark.html) / [PNG](examples/showcase/rendered/08-sign-in-sequence-dark.png) |
+| 9. Checkout and receipt | Sequence | [DSL](examples/showcase/sources/09-checkout-sequence.diagram) | [HTML](examples/showcase/rendered/09-checkout-sequence-light.html) / [PNG](examples/showcase/rendered/09-checkout-sequence-light.png) | [HTML](examples/showcase/rendered/09-checkout-sequence-dark.html) / [PNG](examples/showcase/rendered/09-checkout-sequence-dark.png) |
+| 10. Worker retry | Sequence | [DSL](examples/showcase/sources/10-worker-retry-sequence.diagram) | [HTML](examples/showcase/rendered/10-worker-retry-sequence-light.html) / [PNG](examples/showcase/rendered/10-worker-retry-sequence-light.png) | [HTML](examples/showcase/rendered/10-worker-retry-sequence-dark.html) / [PNG](examples/showcase/rendered/10-worker-retry-sequence-dark.png) |
+
+[Open the local gallery](examples/showcase/index.html) ·
+[Browse every SVG](examples/showcase/rendered) ·
+[Download the sample ZIP](examples/nodelace-10-samples.zip)
+
+The [complete style catalog](examples/style-catalog/README.md) adds 15 rendered
+variants covering custom profiles, every output-size preset, shapes, and sequence
+features. Open its [offline gallery](examples/style-catalog/index.html) to compare
+them. The dedicated [Python examples](https://github.com/1aifanatic/nodelace-python/tree/main/examples)
+and [Node examples](https://github.com/1aifanatic/nodelace-node/tree/main/examples)
+include these examples and language-specific regeneration commands.
+
+## Themes, color profiles, and output sizes
+
+Use `--theme light` (the default) or `--theme dark`. All styles are rendered
+locally; switching themes does not require an AI prompt.
+
+```sh
+nodelace render system.diagram --theme light -o system-light.svg
+nodelace render system.diagram --theme dark -o system-dark.svg
+```
+
+For custom colors, save `colors.toml`:
+
+```toml
+[theme]
+base = "light"
+accent = "#2456a6"
+accent_soft = "#e6eefb"
+```
+
+```sh
+nodelace check system.diagram --profile colors.toml --strict
+nodelace render system.diagram --profile colors.toml
+```
+
+Use either `--theme` or `--profile`. Profiles accept bounded theme settings,
+not arbitrary CSS. A complete example is [blueprint.toml](examples/styles/blueprint.toml).
+
+| Size preset | Canvas | Intended use |
+|---|---|---|
+| `fit` | Content-sized; default | General diagrams and readable HTML |
+| `doc-inline` | 960 × 600 | Inline documentation |
+| `doc-wide` | 1280 × 720 | Wide documentation figures |
+| `slide-16x9` | 1280 × 720 | Presentation slides, with larger preferred diagram scale |
+| `social-square` | 1080 × 1080 | Square graphics |
+| `print-a4` | 1120 × 792 | Landscape A4 proportions; pixel dimensions, not a DPI guarantee |
+
+```sh
+nodelace check system.diagram --theme dark --size slide-16x9 --strict
+nodelace render system.diagram --theme dark --size slide-16x9
+```
+
+Fixed canvases can shrink crowded layouts. Use the same theme, profile, and size
+when checking and rendering, then inspect the result. HTML preserves text size
+with horizontal scrolling on narrow screens. Browser printing fits the diagram
+to the page; use the print dialog to save PDF.
+
+## Use it from your code
+
+### Python API
 
 ```python
-from nodelace.layout import LayoutResult, layout_diagram
+from pathlib import Path
+from nodelace import EDITORIAL_DARK, check_diagram, parse_diagram, render
 
-layout: LayoutResult = layout_diagram(diagram)
+source = 'architecture "Service"\nBrowser -> API: HTTPS'
+diagram = parse_diagram(source)
+diagnostics = check_diagram(diagram, theme=EDITORIAL_DARK)
+for diagnostic in diagnostics:
+    print(diagnostic.severity, diagnostic.code, diagnostic.message)
+
+svg = render(diagram, theme=EDITORIAL_DARK, id_prefix="service-map")
+html = render(diagram, format="html", theme=EDITORIAL_DARK)
+Path("service.svg").write_text(svg, encoding="utf-8")
+Path("service.html").write_text(html, encoding="utf-8")
 ```
 
-`nodelace.layout` exports immutable point, rectangle, positioned-node/group,
-routed-edge, participant, and message value objects.
+`render` accepts source text or a parsed `Diagram` and returns a string. A string
+is always diagram text, never a filename. For files, use
+`render_file("system.diagram", "system.svg", force=True)`; it applies the CLI's
+output-protection policy. Other public helpers include `render_svg`, `render_html`,
+`load_theme("colors.toml")`, and optional `export_png(source, "system.png")`.
+`layout_diagram` from `nodelace.layout` exposes computed positions and routes.
 
-## Examples
+### JavaScript / TypeScript API
 
-The repository contains exactly ten hand-written sources and their
-byte-verified rendered SVGs in [`examples/rendered`](examples/rendered). Open
-the [offline HTML gallery](examples/index.html) or view the
-[single-image gallery](examples/gallery.png) to scan all ten together.
+Save this as `render.mjs` and run `node render.mjs`:
 
-1. [Hello, Nodelace](examples/01-hello-world.diagram) · [SVG](examples/rendered/01-hello-world.svg) — minimal architecture.
-2. [Commerce Platform](examples/02-commerce-platform.diagram) · [SVG](examples/rendered/02-commerce-platform.svg) — branching,
-   labels, and groups.
-3. [Warehouse Feedback Control](examples/03-feedback-control.diagram) · [SVG](examples/rendered/03-feedback-control.svg) — a
-   top-to-bottom cycle.
-4. [Global Café Routing](examples/04-global-routing.diagram) · [SVG](examples/rendered/04-global-routing.svg) — Unicode names
-   and converging regional paths.
-5. [Release Approval](examples/05-release-approval.diagram) · [SVG](examples/rendered/05-release-approval.svg) — branching flow
-   with retry and rollback.
-6. [Incident Response](examples/06-incident-response.diagram) · [SVG](examples/rendered/06-incident-response.svg) —
-   left-to-right business feedback loop.
-7. [Invoice Processing](examples/07-invoice-processing.diagram) · [SVG](examples/rendered/07-invoice-processing.svg) — grouped
-   business process.
-8. [User Sign-In](examples/08-user-sign-in.diagram) · [SVG](examples/rendered/08-user-sign-in.svg) — basic request/response
-   sequence.
-9. [Checkout](examples/09-checkout-sequence.diagram) · [SVG](examples/rendered/09-checkout-sequence.svg) — realistic commerce
-   sequence.
-10. [Regional Sync](examples/10-regional-sync.diagram) · [SVG](examples/rendered/10-regional-sync.svg) — Unicode participants
-    in a multi-region sequence.
+```js
+import { writeFile } from 'node:fs/promises';
+import { check, parse, render } from 'nodelace';
 
-Render all examples from PowerShell:
-
-```powershell
-Get-ChildItem examples\*.diagram | ForEach-Object {
-    $destination = Join-Path $_.DirectoryName ("rendered\" + $_.BaseName + ".svg")
-    nodelace render $_.FullName -o $destination --force
-}
+const source = 'architecture "Service"\nBrowser -> API: HTTPS';
+console.log(await check(source, { theme: 'dark' }));
+const model = await parse(source);
+const svg = await render(source, { theme: 'dark', idPrefix: 'service-map' });
+const html = await render(source, { theme: 'dark', format: 'html' });
+await writeFile('service.svg', svg);
+await writeFile('service.html', html);
+console.log(model.kind);
 ```
 
-## Determinism, privacy, and accessibility
+The three functions are asynchronous. TypeScript declarations are bundled.
+CommonJS code can use `await import('nodelace')` inside an async function.
+JavaScript's `profile` option takes **TOML text**; the CLI's `--profile` takes a
+file path. The JavaScript API renders SVG and HTML; use the CLI for PNG.
 
-- Rendering is local and offline: no model calls, network requests, telemetry,
-  remote fonts, or external rendering services.
-- Stable source ordering and deterministic layout tie-breaks make the same
-  input, options, and Nodelace version produce the same output.
-- SVG is text, scales without pixelation, and is the canonical output. HTML is
-  a self-contained wrapper around that SVG.
-- Rendered diagrams include a title and description for assistive technology.
-  Text remains real SVG text rather than being converted to paths.
-- Color is not the only carrier of structure: labels, grouping, position, and
-  connector direction remain visible without the accent color.
+The npm package runs the shared Python renderer inside local Pyodide WebAssembly.
+It does not launch system Python. Cold startup has overhead, and rendering is
+serialized within one process; reuse the API instance and consider worker threads
+for a server handling concurrent requests. A browser editing SDK is not included.
 
-Complex diagrams still need human judgment. Review reading order, edge labels,
-and color contrast in the context where the output will be published.
+## Export PNG
 
-## Current limitations
+SVG and HTML do not need a browser. PNG uses optional Playwright and Chromium.
 
-- Only architecture, flow, and basic sequence diagrams are supported.
-- Groups are flat; nested groups and swimlanes are not available.
-- The language has one built-in editorial theme and no arbitrary SVG/CSS
-  injection.
-- Sequence diagrams support ordered messages, not the full UML sequence
-  notation such as activation control, `alt`, `loop`, or participant lifetime.
-- Dense graphs, many cycles, and long labels can produce a less compact layout.
-  Split large systems into an overview and focused detail diagrams.
-- A source is limited to 50 nodes so accidental or generated input cannot turn
-  a documentation render into an unbounded layout job.
-- The bundled fonts cover Latin text. Other Unicode text remains valid and
-  selectable, but a viewer may use an installed fallback font for unsupported
-  glyphs, so its pixels can vary even though the SVG bytes and geometry do not.
-- SVG and HTML are the only outputs. PNG and PDF conversion are deliberately
-  outside the dependency-free core.
+For Python, run from the installed package's source checkout:
 
-## Development
+```sh
+python -m pip install ".[png]"
+python -m playwright install chromium
+python -m nodelace export system.diagram -o system.png --theme dark --scale 2
+```
 
-Create and activate a virtual environment, then install the project with its
-development tools:
+For Node.js:
 
-```console
-python -m venv .venv
+```sh
+npm install playwright
+npx playwright install chromium
+npx nodelace export system.diagram -o system.png --theme dark --scale 2
+```
+
+Browser installation needs network access. Export itself runs locally and blocks
+HTTP(S) requests. Scale accepts 1–4; the default is 2. Add `--force` to replace an
+existing PNG. On Linux, Chromium may also need system libraries installed through
+Playwright's `install --with-deps chromium` command.
+
+## Command behavior and checks
+
+Examples below use `nodelace`; Python users can use `python -m nodelace`, and
+project-local npm users can use `npx nodelace`.
+
+```sh
+nodelace check system.diagram
+nodelace check system.diagram --layout --strict --json
+nodelace render system.diagram -o system.html
+nodelace render system.diagram -o system.html --force
+echo "Browser -> API" | nodelace render - -o - --system-fonts
+```
+
+- `check` parses and validates without writing output. `--layout` adds visual
+  diagnostics; `--strict` also fails on warnings and implies `--layout`.
+- `--json` gives machine-readable check results, including errors and locations.
+  Syntax errors, validation errors, and failed strict checks return a nonzero exit.
+- Without `-o`, rendering writes a sibling `.svg` or `.html` and replaces it on
+  reruns. An explicitly named existing output requires `--force`.
+- `-` reads UTF-8 from stdin; `render -o -` writes to stdout. Rendering from stdin
+  defaults to stdout. Output filename extensions must match the selected format.
+- Fonts embed by default. `--system-fonts` reduces output size but relies on
+  fonts installed on the viewer's machine.
+- Use a different `--id-prefix` for each SVG instance when inlining repeated
+  diagrams into one HTML document.
+
+## Where to use Nodelace
+
+- **Documentation and design reviews:** keep diagrams beside code, review small
+  source diffs, and regenerate figures when an architecture changes.
+- **CI and documentation builds:** validate `.diagram` files and generate static
+  artifacts without an API key or hosted rendering service.
+- **Python automation and Node.js tools:** generate reports, onboarding material,
+  service maps, runbooks, and internal knowledge-base illustrations.
+- **Presentations:** export SVG or PNG at a destination size, or print HTML to PDF.
+- **AI-assisted authoring:** give an agent the [compact DSL guide](docs/AGENT-REFERENCE.md)
+  and have it write diagram source; Nodelace handles layout and output locally.
+
+Local rendering uses **zero model tokens**. End-to-end token savings depend on
+the authoring prompt, revisions, and visual review; no savings percentage is claimed.
+
+## Limits and predictable output
+
+The same source, options, and Nodelace version produce deterministic SVG/HTML.
+Rendering sends no telemetry and does not upload diagram content. Package and
+optional browser installation need downloads; installed SVG/HTML rendering works offline.
+
+- Supported diagram types are architecture, flow, and sequence. This is not full
+  UML or support for every diagram family in the reference design skill.
+- Groups are flat; nested groups, swimlanes, a visual editor, and animated diagrams
+  are not provided. Sequence participant creation/destruction is not supported.
+- A diagram allows at most 50 nodes, 200 edges, and 20 groups. CLI/file input is
+  limited to 256 KiB; the Node API applies that source limit too. Profiles are
+  limited to 16 KiB. These are ceilings, not recommended diagram sizes.
+- Large graphs, many cycles, long labels, and small output canvases can require
+  manual refinement. Diagnostics help find problems but cannot guarantee ideal
+  composition. Split a dense system into an overview and focused details.
+- Bundled fonts cover Latin text. Other Unicode text can use viewer-installed
+  fallback fonts; pixels can differ across machines even when SVG bytes match.
+- Output retains selectable text, titles, and descriptions. Review readability,
+  contrast, and reading order in the final publishing context.
+
+The design was inspired by [diagram-design](https://github.com/cathrynlavery/diagram-design).
+Nodelace is an independent implementation and does not claim 100% visual or
+feature parity. The [upstream reference manifest](docs/upstream-reference.json)
+records the revision reviewed and the selected contracts adopted.
+
+## Troubleshooting
+
+| Problem | What to do |
+|---|---|
+| `nodelace` is not found | Activate the Python environment and use `python -m nodelace`, or use `npx nodelace` in the npm project. |
+| Python registry installation fails | Install this release from the Python repository with `python -m pip install .`; it is not on PyPI yet. |
+| Node installation reports an unsupported engine | Check `node --version`; use Node.js 22 or newer. |
+| Existing output cannot be replaced | Confirm the destination, then add `--force`. Do not use the source file as the output. |
+| PNG reports a missing browser | Install the optional Playwright dependency and run its Chromium installation command above. |
+| Strict checks report warnings | Inspect the reported labels, density, crossings, or contrast; shorten text, simplify the diagram, or change the canvas/profile. |
+| HTML appears as code on GitHub | Download or clone the repository and open the `.html` file locally. |
+| Non-Latin text looks different across machines | Install the same fallback fonts where you render/view, or share a PNG exported on a controlled machine. |
+
+## Repository and development
+
+| Path | Contents |
+|---|---|
+| [`src/nodelace`](src/nodelace) | Shared Python parser, layout, renderer, diagnostics, and CLI |
+| [`npm`](npm) | Node.js adapter, type declarations, CLI, tests, and packaging |
+| [`examples/showcase`](examples/showcase) | Ten examples in both themes with source, SVG, HTML, and PNG |
+| [`examples/styles`](examples/styles) | Theme and profile examples |
+| [`examples/style-catalog`](examples/style-catalog) | Full style coverage, including shapes, sequence features, custom colors, and all size presets |
+| [`docs/DSL.md`](docs/DSL.md) | Complete language and validation reference |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Implementation and determinism rules |
+| [`docs/AGENT-REFERENCE.md`](docs/AGENT-REFERENCE.md) | Compact reference for AI-assisted authoring |
+
+To work on the shared implementation, clone this repository, create and activate
+a virtual environment as above, then run:
+
+```sh
 python -m pip install -e ".[dev]"
-```
-
-Run the quality checks:
-
-```console
 python -m pytest
+python -m ruff check .
 python -m coverage run -m pytest
 python -m coverage report
-python -m ruff check .
 python -m build
-python -m twine check dist/*
 ```
 
-The implementation architecture and determinism rules are described in
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+For the Node adapter, from `npm/`:
+
+```sh
+npm ci
+npm test
+npm pack
+```
+
+`npm run sync` copies the allowlisted renderer sources and assets into the package.
+The package has no install-time build scripts. Follow the dedicated
+[Python guide](https://github.com/1aifanatic/nodelace-python) or
+[Node guide](https://github.com/1aifanatic/nodelace-node) to regenerate their
+examples. Report bugs with the smallest reproducing source, package/runtime
+version, command/options, and observed output through [GitHub issues](https://github.com/1aifanatic/nodelace/issues).
 
 ## License and attribution
 
-Nodelace code is released under the [MIT License](LICENSE). Bundled fonts have
-their own notices in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Nodelace code is released under the [MIT License](LICENSE). Bundled fonts retain
+their licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Pyodide and
+optional Playwright retain their own licenses.
 
-The project's design goals were inspired by Kathryn Lavery's
-[diagram-design](https://github.com/cathrynlavery/diagram-design) work. Nodelace
-is an independent, deterministic implementation; it does not package or invoke
-that AI-oriented skill.
+The visual direction was inspired by Kathryn Lavery's
+[diagram-design](https://github.com/cathrynlavery/diagram-design). Nodelace does
+not package or invoke that AI-oriented skill.

@@ -11,11 +11,11 @@ from nodelace.model import Diagram, DiagramKind, Direction, Edge, Group, Node
 
 def test_parses_titled_architecture_chain_in_source_order() -> None:
     result = parse_diagram(
-        '''architecture "Order system"
+        """architecture "Order system"
 direction left-to-right
 
 Browser -> API -> Database
-''',
+""",
         source_name="order.diagram",
     )
 
@@ -28,7 +28,7 @@ Browser -> API -> Database
 
 def test_parses_comments_labels_groups_and_highlights() -> None:
     result = parse_diagram(
-        '''# commerce overview
+        """# commerce overview
 architecture "Global Café"
 
 Browser -> API: HTTPS  # transport
@@ -36,7 +36,7 @@ API -> München: replicate
 group Edge: Browser, API
 group Regions: München
 highlight API, München
-'''
+"""
     )
 
     assert result.nodes == (Node("Browser"), Node("API"), Node("München"))
@@ -53,11 +53,11 @@ highlight API, München
 
 def test_quoted_names_preserve_syntax_unicode_and_supported_escapes() -> None:
     result = parse_diagram(
-        r'''flow "Say \"hello\" \\ café"
+        r"""flow "Say \"hello\" \\ café"
 "Web -> client" -> "API: v2": "call #1 // local"
 group "Core, tier": "Web -> client", "API: v2"
 highlight "API: v2"
-'''
+"""
     )
 
     assert result.kind is DiagramKind.FLOW
@@ -127,9 +127,7 @@ def test_accepts_50_nodes_and_rejects_the_51st_at_its_line() -> None:
         parse_diagram(fifty_one_nodes, source_name="crowded.diagram")
 
     assert caught.value.line == 50
-    assert caught.value.message == (
-        "diagram has more than 50 nodes (first extra node is 'N50')"
-    )
+    assert caught.value.message == ("diagram has more than 50 nodes (first extra node is 'N50')")
 
 
 @pytest.mark.parametrize(
@@ -239,8 +237,8 @@ def test_malformed_input_has_a_friendly_line_specific_syntax_error(
             "diagram title is longer than 200 characters",
         ),
         (
-            f'{"n" * 200} -> B',
-            f'{"n" * 201} -> B',
+            f"{'n' * 200} -> B",
+            f"{'n' * 201} -> B",
             "node name is longer than 200 characters",
         ),
     ],
@@ -258,7 +256,7 @@ def test_text_length_limits_count_unicode_characters(
 
 
 def test_rejects_control_characters_but_accepts_non_ascii_unicode() -> None:
-    unicode_diagram = parse_diagram('München -> 東京: café 🚀')
+    unicode_diagram = parse_diagram("München -> 東京: café 🚀")
     assert unicode_diagram.node_ids == ("München", "東京")
     assert unicode_diagram.edges[0].label == "café 🚀"
 
@@ -334,9 +332,7 @@ def test_direct_model_construction_is_immutable_and_normalizes_public_values() -
             "edge target 'Missing' is not a defined node",
         ),
         (
-            lambda: Diagram(
-                nodes=(Node("A"),), groups=(Group("Unknown", ("Missing",)),)
-            ),
+            lambda: Diagram(nodes=(Node("A"),), groups=(Group("Unknown", ("Missing",)),)),
             "group 'Unknown' references undefined node 'Missing'",
         ),
         (

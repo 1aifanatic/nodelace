@@ -7,6 +7,8 @@ from collections.abc import Iterable
 from dataclasses import replace
 from typing import Any
 
+from nodelace.text import edge_label_size, node_text_width, text_width
+
 from .router import CHANNEL_TAIL, PORT_SEPARATION, edge_label_width, route_edges
 from .types import LayoutResult, PositionedGroup, PositionedNode, Rect
 
@@ -57,7 +59,7 @@ def _round_up(value: int, grid: int = 4) -> int:
 
 
 def _node_width(label: str) -> int:
-    return max(NODE_MIN_WIDTH, min(NODE_MAX_WIDTH, _round_up(len(label) * 8 + 32)))
+    return max(NODE_MIN_WIDTH, min(NODE_MAX_WIDTH, _round_up(text_width(label) + 32)))
 
 
 def _order(item: Any, fallback: int) -> tuple[int, int]:
@@ -289,9 +291,10 @@ def _normalise_geometry(
         width = edge_label_width(edge.label)
         if width:
             min_x.append(edge.label_position.x - width // 2)
-            min_y.append(edge.label_position.y - 14)
+            _, label_height = edge_label_size(edge.label)
+            min_y.append(edge.label_position.y - 14 - (label_height - 20) // 2)
             max_x.append(edge.label_position.x - width // 2 + width)
-            max_y.append(edge.label_position.y + 6)
+            max_y.append(edge.label_position.y + 6 + (label_height - 20) // 2)
     if not min_x:
         return nodes, groups, edges, Rect(0, 0, CANVAS_PADDING * 2, CANVAS_PADDING * 2)
 
@@ -367,7 +370,15 @@ def layout_layered(diagram: Any) -> LayoutResult:
             "skip": incident[("skip", identifier)],
         }
         width = _node_width(label)
+        width = max(width, min(NODE_MAX_WIDTH, _round_up(node_text_width(node) + 32)))
         height = NODE_HEIGHT
+        if node.tag or node.sublabel:
+            height = 80
+        if node.shape == "decision":
+            width = max(160, min(400, _round_up(text_width(label) * 2 + 56)))
+            height = 96
+        elif node.shape == "merge":
+            width = height = 16
         if direction == "left-to-right":
             height = max(height, _required_port_span(degree["forward"]))
             width = max(
@@ -388,6 +399,25 @@ def layout_layered(diagram: Any) -> LayoutResult:
     for spec in specs:
         by_rank.setdefault(spec[4], []).append(spec)
     ranks = sorted(by_rank)
+    # Stable barycentric sweeps reduce crossings without changing source/model order.
+    for sweep in (ranks, list(reversed(ranks))):
+        positions = {
+            spec[2]: index for layer in by_rank.values() for index, spec in enumerate(layer)
+        }
+        for rank in sweep:
+            scores = {}
+            for spec in by_rank[rank]:
+                neighbors = [
+                    positions[str(edge.source if sweep is ranks else edge.target)]
+                    for edge in model_edges
+                    if str(edge.target if sweep is ranks else edge.source) == spec[2]
+                    and rank_by_id[str(edge.source if sweep is ranks else edge.target)] != rank
+                ]
+                scores[spec[2]] = (
+                    sum(neighbors) / len(neighbors) if neighbors else positions[spec[2]]
+                )
+            by_rank[rank].sort(key=lambda spec, scores=scores: (scores[spec[2]], spec[0]))
+            positions.update({spec[2]: index for index, spec in enumerate(by_rank[rank])})
     rank_primary_size: dict[int, int] = {}
     rank_cross_size: dict[int, int] = {}
     for rank in ranks:

@@ -1,0 +1,12 @@
+[
+  {"id":"01-web-service","title":"A small web service","description":"A web API with durable storage and an optional cache.","kind":"architecture"},
+  {"id":"02-event-processing","title":"Orders become events","description":"An order API hands asynchronous work to a queue and worker.","kind":"architecture"},
+  {"id":"03-analytics-pipeline","title":"From records to insight","description":"Product events move through validation, storage and reporting.","kind":"architecture"},
+  {"id":"04-assistant-architecture","title":"An assistant with context","description":"A gateway combines knowledge retrieval with a model request.","kind":"architecture"},
+  {"id":"05-release-gate","title":"A release with a safety gate","description":"A decision flow with a retry path for failing checks.","kind":"flow"},
+  {"id":"06-support-triage","title":"Route the next support ticket","description":"Urgent tickets page on-call while others enter the standard queue.","kind":"flow"},
+  {"id":"07-expense-approval","title":"A clear expense decision","description":"A policy decision routes an expense to payment or further review.","kind":"flow"},
+  {"id":"08-sign-in-sequence","title":"Sign in, with two outcomes","description":"Explicit calls and returns inside a guarded ALT fragment.","kind":"sequence"},
+  {"id":"09-checkout-sequence","title":"Checkout and an optional receipt","description":"A self-call reserves stock before an optional asynchronous receipt.","kind":"sequence"},
+  {"id":"10-worker-retry-sequence","title":"A worker repeats a request","description":"A worker activation spans a LOOP fragment and reports its outcome.","kind":"sequence"}
+]

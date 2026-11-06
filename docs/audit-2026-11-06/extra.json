@@ -1,0 +1,23 @@
+{
+  "inline": {
+    "fills": [
+      "rgb(0, 0, 0)",
+      "rgb(0, 0, 0)"
+    ],
+    "duplicateIds": [
+      "nodelace-2f524145ded6-title",
+      "nodelace-2f524145ded6-description",
+      "nodelace-2f524145ded6-arrow"
+    ]
+  },
+  "routing": {
+    "source": "architecture \"Routing probe\"\nE -> A\nA -> E\nA -> B\nE -> D\nB -> E\nB -> D\nE -> F\nA -> F",
+    "hits": [
+      [
+        "E",
+        "D",
+        "F"
+      ]
+    ]
+  }
+}

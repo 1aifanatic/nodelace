@@ -1,0 +1,13 @@
+sequence "A worker repeats a request"
+node Scheduler role=backend tag=JOBS
+node Worker role=backend tag=WORK
+node Service role=external tag=API
+Scheduler ~> Worker: start task
+activate Worker
+loop "until success or limit"
+call Worker -> Service: request
+Service --> Worker: result
+end
+Worker --> Scheduler: task outcome
+deactivate Worker
+highlight Worker

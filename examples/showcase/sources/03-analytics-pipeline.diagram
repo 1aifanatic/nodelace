@@ -1,0 +1,9 @@
+architecture "From records to insight"
+node Sources role=input tag=INPUT sublabel="Product events"
+node Ingest role=backend tag=ETL sublabel="Clean and validate"
+node Warehouse role=store tag=SQL sublabel="Trusted datasets"
+node Dashboard role=external tag=VIEW sublabel="Daily decisions"
+Sources -> Ingest: collect
+Ingest => Warehouse: load
+Warehouse -> Dashboard: query
+highlight Warehouse

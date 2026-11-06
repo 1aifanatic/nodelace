@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Any
 
+from nodelace.text import node_text_width, text_width
+
 from .router import edge_label_width
 from .types import (
     LayoutResult,
@@ -12,6 +14,7 @@ from .types import (
     PositionedNode,
     Rect,
     RoutedEdge,
+    SequenceFrame,
     SequenceMessage,
     SequenceParticipant,
 )
@@ -34,7 +37,7 @@ def _round_up(value: int, grid: int = 4) -> int:
 def _width(label: str) -> int:
     return max(
         PARTICIPANT_MIN_WIDTH,
-        min(PARTICIPANT_MAX_WIDTH, _round_up(len(label) * 8 + 32)),
+        min(PARTICIPANT_MAX_WIDTH, _round_up(text_width(label) + 32)),
     )
 
 
@@ -85,9 +88,7 @@ def _translate_sequence(
         )
         for participant in participants
     )
-    translated_nodes = tuple(
-        replace(node, bounds=node.bounds.translated(dx, dy)) for node in nodes
-    )
+    translated_nodes = tuple(replace(node, bounds=node.bounds.translated(dx, dy)) for node in nodes)
     translated_messages = tuple(
         replace(
             message,
@@ -125,17 +126,40 @@ def layout_sequence(diagram: Any) -> LayoutResult:
     for fallback, node in indexed_nodes:
         identifier = str(node.id)
         label = str(getattr(node, "label", None) or identifier)
-        bounds = Rect(cursor, CANVAS_PADDING, _width(label), PARTICIPANT_HEIGHT)
+        height = 80 if node.tag or node.sublabel else PARTICIPANT_HEIGHT
+        width = max(
+            _width(label), min(PARTICIPANT_MAX_WIDTH, _round_up(node_text_width(node) + 32))
+        )
+        bounds = Rect(cursor, CANVAS_PADDING, width, height)
         participant_specs.append((fallback, node, identifier, label, bounds))
         cursor = bounds.right + PARTICIPANT_GAP
 
-    first_message_y = CANVAS_PADDING + PARTICIPANT_HEIGHT + MESSAGE_TOP_GAP
-    if indexed_edges:
-        final_message_y = first_message_y + (len(indexed_edges) - 1) * MESSAGE_GAP
-        lifeline_bottom = final_message_y + 64
-    else:
-        lifeline_bottom = first_message_y + 32
-    lifeline_top = CANVAS_PADDING + PARTICIPANT_HEIGHT
+    participant_height = max(
+        (item[4].height for item in participant_specs), default=PARTICIPANT_HEIGHT
+    )
+    first_message_y = CANVAS_PADDING + participant_height + MESSAGE_TOP_GAP
+    timeline = first_message_y
+    message_y: list[int] = []
+    frame_tops: dict[int, int] = {}
+    frame_bottoms: dict[int, int] = {}
+    dividers: dict[int, int] = {}
+    for index in range(len(indexed_edges) + 1):
+        for fi, frame in sorted(enumerate(diagram.fragments), key=lambda item: -item[1].depth):
+            if frame.end == index:
+                frame_bottoms[fi] = timeline - 24
+                timeline += 24
+        for fi, frame in sorted(enumerate(diagram.fragments), key=lambda item: item[1].depth):
+            if frame.split == index:
+                dividers[fi] = timeline - 16
+                timeline += 64
+            if frame.start == index:
+                frame_tops[fi] = timeline - 16
+                timeline += 80
+        if index < len(indexed_edges):
+            message_y.append(timeline)
+            edge = indexed_edges[index][1]
+            timeline += MESSAGE_GAP + (SELF_LOOP_HEIGHT if edge.source == edge.target else 0)
+    lifeline_bottom = timeline + 8 if indexed_edges else first_message_y + 32
     highlighted = set(getattr(diagram, "highlights", ()))
     participants = tuple(
         SequenceParticipant(
@@ -144,7 +168,7 @@ def layout_sequence(diagram: Any) -> LayoutResult:
             label=label,
             bounds=bounds,
             lifeline_x=bounds.center_x,
-            lifeline_top=lifeline_top,
+            lifeline_top=bounds.bottom,
             lifeline_bottom=lifeline_bottom,
             order=_order(node, fallback)[0],
             highlighted=identifier in highlighted,
@@ -170,7 +194,7 @@ def layout_sequence(diagram: Any) -> LayoutResult:
     for message_index, (fallback, edge) in enumerate(indexed_edges):
         source = participant_by_id[str(edge.source)]
         target = participant_by_id[str(edge.target)]
-        y = first_message_y + message_index * MESSAGE_GAP
+        y = message_y[message_index]
         self_message = source.id == target.id
         if self_message:
             points = (
@@ -212,6 +236,50 @@ def layout_sequence(diagram: Any) -> LayoutResult:
 
     message_tuple = tuple(messages)
     edge_tuple = tuple(routed_edges)
+    frames: list[SequenceFrame] = []
+    for fi, frame in enumerate(diagram.fragments):
+        frame_messages = messages[frame.start : frame.end]
+        actors = {actor for message in frame_messages for actor in (message.source, message.target)}
+        inset = 48 - frame.depth * 16
+        left = min(participant_by_id[actor].lifeline_x for actor in actors) - inset
+        right = max(participant_by_id[actor].lifeline_x for actor in actors) + inset
+        for message in frame_messages:
+            left = min(left, *(point.x - 16 for point in message.points))
+            right = max(right, *(point.x + 16 for point in message.points))
+            if bounds := _label_bounds(message):
+                left = min(left, bounds.x - 12)
+                right = max(right, bounds.right + 12)
+        guard_width = (
+            max(
+                text_width(f"[{frame.guard}]", 11, "mono"),
+                text_width(f"[{frame.else_guard or ''}]", 11, "mono"),
+            )
+            + 32
+        )
+        frame_width = max(right - left, min(640, guard_width))
+        frames.append(
+            SequenceFrame(
+                frame,
+                Rect(
+                    left, frame_tops[fi], _round_up(frame_width), frame_bottoms[fi] - frame_tops[fi]
+                ),
+                dividers.get(fi),
+            )
+        )
+    for index, outer in enumerate(frames):
+        children = [
+            inner.bounds
+            for inner in frames
+            if inner.fragment.depth > outer.fragment.depth
+            and outer.fragment.start <= inner.fragment.start
+            and inner.fragment.end <= outer.fragment.end
+        ]
+        if children:
+            left = min(outer.bounds.x, *(child.x - 16 for child in children))
+            right = max(outer.bounds.right, *(child.right + 16 for child in children))
+            frames[index] = replace(
+                outer, bounds=Rect(left, outer.bounds.y, right - left, outer.bounds.height)
+            )
     label_bounds = tuple(
         bounds for message in message_tuple if (bounds := _label_bounds(message)) is not None
     )
@@ -219,6 +287,7 @@ def layout_sequence(diagram: Any) -> LayoutResult:
         [participant.bounds.x for participant in participants]
         + [point.x for message in message_tuple for point in message.points]
         + [bounds.x for bounds in label_bounds]
+        + [frame.bounds.x for frame in frames]
         + [CANVAS_PADDING]
     )
     min_y = min(
@@ -232,6 +301,7 @@ def layout_sequence(diagram: Any) -> LayoutResult:
         [participant.bounds.right for participant in participants]
         + [point.x for message in message_tuple for point in message.points]
         + [bounds.right for bounds in label_bounds]
+        + [frame.bounds.right for frame in frames]
         + [CANVAS_PADDING]
     )
     max_y = max(
@@ -266,6 +336,14 @@ def layout_sequence(diagram: Any) -> LayoutResult:
         edges=edge_tuple,
         participants=participants,
         messages=message_tuple,
+        frames=tuple(
+            replace(
+                frame,
+                bounds=frame.bounds.translated(dx, dy),
+                divider_y=frame.divider_y + dy if frame.divider_y is not None else None,
+            )
+            for frame in frames
+        ),
     )
 
 

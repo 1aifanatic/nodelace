@@ -1,0 +1,205 @@
+{
+  "generator": "nodelace npm 0.3.0 / local Pyodide + Chromium",
+  "samples": [
+    {
+      "id": "01-web-service",
+      "theme": "light",
+      "width": 820,
+      "height": 584,
+      "pngWidth": 1640,
+      "pngHeight": 1168,
+      "diagnostics": [],
+      "textOverflow": []
+    },
+    {
+      "id": "01-web-service",
+      "theme": "dark",
+      "width": 820,
+      "height": 584,
+      "pngWidth": 1640,
+      "pngHeight": 1168,
+      "diagnostics": [],
+      "textOverflow": []
+    },
+    {
+      "id": "02-event-processing",
+      "theme": "light",
+      "width": 1064,
+      "height": 400,
+      "pngWidth": 2128,
+      "pngHeight": 800,
+      "diagnostics": [],
+      "textOverflow": []
+    },
+    {
+      "id": "02-event-processing",
+      "theme": "dark",
+      "width": 1064,
+      "height": 400,
+      "pngWidth": 2128,
+      "pngHeight": 800,
+      "diagnostics": [],
+      "textOverflow": []
+    },
+    {
+      "id": "03-analytics-pipeline",
+      "theme": "light",
+      "width": 968,
+      "height": 400,
+      "pngWidth": 1936,
+      "pngHeight": 800,
+      "diagnostics": [],
+      "textOverflow": []
+    },
+    {
+      "id": "03-analytics-pipeline",
+      "theme": "dark",
+      "width": 968,
+      "height": 400,
+      "pngWidth": 1936,
+      "pngHeight": 800,
+      "diagnostics": [],
+      "textOverflow": []
+    },
+    {
+      "id": "04-assistant-architecture",
+      "theme": "light",
+      "width": 788,
+      "height": 528,
+      "pngWidth": 1576,
+      "pngHeight": 1056,
+      "diagnostics": [],
+      "textOverflow": []
+    },
+    {
+      "id": "04-assistant-architecture",
+      "theme": "dark",
+      "width": 788,
+      "height": 528,
+      "pngWidth": 1576,
+      "pngHeight": 1056,
+      "diagnostics": [],
+      "textOverflow": []
+    },
+    {
+      "id": "05-release-gate",
+      "theme": "light",
+      "width": 640,
+      "height": 1048,
+      "pngWidth": 1280,
+      "pngHeight": 2096,
+      "diagnostics": [],
+      "textOverflow": []
+    },
+    {
+      "id": "05-release-gate",
+      "theme": "dark",
+      "width": 640,
+      "height": 1048,
+      "pngWidth": 1280,
+      "pngHeight": 2096,
+      "diagnostics": [],
+      "textOverflow": []
+    },
+    {
+      "id": "06-support-triage",
+      "theme": "light",
+      "width": 640,
+      "height": 720,
+      "pngWidth": 1280,
+      "pngHeight": 1440,
+      "diagnostics": [],
+      "textOverflow": []
+    },
+    {
+      "id": "06-support-triage",
+      "theme": "dark",
+      "width": 640,
+      "height": 720,
+      "pngWidth": 1280,
+      "pngHeight": 1440,
+      "diagnostics": [],
+      "textOverflow": []
+    },
+    {
+      "id": "07-expense-approval",
+      "theme": "light",
+      "width": 640,
+      "height": 720,
+      "pngWidth": 1280,
+      "pngHeight": 1440,
+      "diagnostics": [],
+      "textOverflow": []
+    },
+    {
+      "id": "07-expense-approval",
+      "theme": "dark",
+      "width": 640,
+      "height": 720,
+      "pngWidth": 1280,
+      "pngHeight": 1440,
+      "diagnostics": [],
+      "textOverflow": []
+    },
+    {
+      "id": "08-sign-in-sequence",
+      "theme": "light",
+      "width": 680,
+      "height": 920,
+      "pngWidth": 1360,
+      "pngHeight": 1840,
+      "diagnostics": [],
+      "textOverflow": []
+    },
+    {
+      "id": "08-sign-in-sequence",
+      "theme": "dark",
+      "width": 680,
+      "height": 920,
+      "pngWidth": 1360,
+      "pngHeight": 1840,
+      "diagnostics": [],
+      "textOverflow": []
+    },
+    {
+      "id": "09-checkout-sequence",
+      "theme": "light",
+      "width": 680,
+      "height": 824,
+      "pngWidth": 1360,
+      "pngHeight": 1648,
+      "diagnostics": [],
+      "textOverflow": []
+    },
+    {
+      "id": "09-checkout-sequence",
+      "theme": "dark",
+      "width": 680,
+      "height": 824,
+      "pngWidth": 1360,
+      "pngHeight": 1648,
+      "diagnostics": [],
+      "textOverflow": []
+    },
+    {
+      "id": "10-worker-retry-sequence",
+      "theme": "light",
+      "width": 680,
+      "height": 800,
+      "pngWidth": 1360,
+      "pngHeight": 1600,
+      "diagnostics": [],
+      "textOverflow": []
+    },
+    {
+      "id": "10-worker-retry-sequence",
+      "theme": "dark",
+      "width": 680,
+      "height": 800,
+      "pngWidth": 1360,
+      "pngHeight": 1600,
+      "diagnostics": [],
+      "textOverflow": []
+    }
+  ]
+}

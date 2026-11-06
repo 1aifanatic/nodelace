@@ -1,0 +1,25 @@
+{
+  "name": "nodelace",
+  "version": "0.3.0",
+  "description": "Local, deterministic architecture, flow and sequence diagrams. No Python installation required.",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/1aifanatic/nodelace.git", "directory": "npm" },
+  "homepage": "https://github.com/1aifanatic/nodelace#readme",
+  "bugs": "https://github.com/1aifanatic/nodelace/issues",
+  "keywords": ["diagram", "svg", "architecture", "flowchart", "sequence", "offline"],
+  "exports": { ".": { "types": "./src/index.d.ts", "import": "./src/index.js" } },
+  "types": "./src/index.d.ts",
+  "bin": { "nodelace": "./src/cli.js" },
+  "files": ["src", "bin", "python", "LICENSE", "THIRD_PARTY_NOTICES.md", "README.md"],
+  "scripts": {
+    "sync": "node scripts/sync-python.mjs",
+    "prepack": "npm run sync",
+    "test": "npm run sync && node --test tests/*.test.mjs",
+    "smoke": "node scripts/smoke-package.mjs"
+  },
+  "dependencies": { "pyodide": "314.0.7" },
+  "peerDependencies": { "playwright": ">=1.50 <2" },
+  "peerDependenciesMeta": { "playwright": { "optional": true } }
+}

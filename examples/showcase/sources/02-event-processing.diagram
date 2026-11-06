@@ -1,0 +1,9 @@
+architecture "Orders become events"
+node Store role=external tag=WEB sublabel="Customer storefront"
+node Orders role=backend tag=API sublabel="Accept orders"
+node Queue role=store tag=EVENTS sublabel="Buffer work"
+node Worker role=backend tag=JOB sublabel="Prepare fulfilment"
+Store -> Orders: checkout
+Orders ~> Queue: order placed
+Queue ~> Worker: deliver
+highlight Orders

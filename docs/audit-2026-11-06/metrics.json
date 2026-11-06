@@ -1,0 +1,207 @@
+{
+  "examples": [
+    {
+      "name": "01-hello-world",
+      "source_chars": 97,
+      "svg_chars": 3121,
+      "embedded_bytes": 275098,
+      "median_ms": 0.576,
+      "source_tokens": 22,
+      "svg_tokens": 1136
+    },
+    {
+      "name": "02-commerce-platform",
+      "source_chars": 356,
+      "svg_chars": 6550,
+      "embedded_bytes": 278527,
+      "median_ms": 1.337,
+      "source_tokens": 78,
+      "svg_tokens": 2321
+    },
+    {
+      "name": "03-feedback-control",
+      "source_chars": 324,
+      "svg_chars": 5620,
+      "embedded_bytes": 277597,
+      "median_ms": 1.304,
+      "source_tokens": 63,
+      "svg_tokens": 1988
+    },
+    {
+      "name": "04-global-routing",
+      "source_chars": 290,
+      "svg_chars": 5548,
+      "embedded_bytes": 277572,
+      "median_ms": 1.237,
+      "source_tokens": 72,
+      "svg_tokens": 1994
+    },
+    {
+      "name": "05-release-approval",
+      "source_chars": 277,
+      "svg_chars": 6737,
+      "embedded_bytes": 278714,
+      "median_ms": 1.303,
+      "source_tokens": 65,
+      "svg_tokens": 2443
+    },
+    {
+      "name": "06-incident-response",
+      "source_chars": 309,
+      "svg_chars": 5852,
+      "embedded_bytes": 277829,
+      "median_ms": 1.297,
+      "source_tokens": 82,
+      "svg_tokens": 2137
+    },
+    {
+      "name": "07-invoice-processing",
+      "source_chars": 380,
+      "svg_chars": 6835,
+      "embedded_bytes": 278812,
+      "median_ms": 1.393,
+      "source_tokens": 85,
+      "svg_tokens": 2409
+    },
+    {
+      "name": "08-user-sign-in",
+      "source_chars": 223,
+      "svg_chars": 5408,
+      "embedded_bytes": 277385,
+      "median_ms": 1.1,
+      "source_tokens": 50,
+      "svg_tokens": 1906
+    },
+    {
+      "name": "09-checkout-sequence",
+      "source_chars": 329,
+      "svg_chars": 6507,
+      "embedded_bytes": 278484,
+      "median_ms": 1.067,
+      "source_tokens": 71,
+      "svg_tokens": 2243
+    },
+    {
+      "name": "10-regional-sync",
+      "source_chars": 229,
+      "svg_chars": 5413,
+      "embedded_bytes": 277440,
+      "median_ms": 1.173,
+      "source_tokens": 67,
+      "svg_tokens": 1926
+    }
+  ],
+  "reference_text": {
+    "skills\\diagram-design\\SKILL.md": {
+      "chars": 30696,
+      "tokens": 7441
+    },
+    "skills\\diagram-design\\references\\style-guide.md": {
+      "chars": 20539,
+      "tokens": 5601
+    },
+    "skills\\diagram-design\\references\\type-architecture.md": {
+      "chars": 10398,
+      "tokens": 2544
+    },
+    "skills\\diagram-design\\references\\layout-budget.md": {
+      "chars": 4481,
+      "tokens": 1383
+    }
+  },
+  "browser": {
+    "wide-label": [
+      {
+        "text": "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
+        "textWidth": 407.8196105957031,
+        "boxWidth": 272,
+        "overflow": true
+      },
+      {
+        "text": "API",
+        "textWidth": 22.43798828125,
+        "boxWidth": 120,
+        "overflow": false
+      }
+    ],
+    "cjk-label": [
+      {
+        "text": "東京東京東京東京東京東京東京東京東京東京東京東京東京東京東京",
+        "textWidth": 422,
+        "boxWidth": 272,
+        "overflow": true
+      },
+      {
+        "text": "API",
+        "textWidth": 22.43798828125,
+        "boxWidth": 120,
+        "overflow": false
+      }
+    ],
+    "colliding-labels": [
+      {
+        "text": "A",
+        "textWidth": 10,
+        "boxWidth": 120,
+        "overflow": false
+      },
+      {
+        "text": "B",
+        "textWidth": 10,
+        "boxWidth": 120,
+        "overflow": false
+      },
+      {
+        "text": "C",
+        "textWidth": 10.078125,
+        "boxWidth": 120,
+        "overflow": false
+      }
+    ],
+    "crossing": [
+      {
+        "text": "A",
+        "textWidth": 10,
+        "boxWidth": 120,
+        "overflow": false
+      },
+      {
+        "text": "C",
+        "textWidth": 10.078125,
+        "boxWidth": 120,
+        "overflow": false
+      },
+      {
+        "text": "B",
+        "textWidth": 10,
+        "boxWidth": 120,
+        "overflow": false
+      },
+      {
+        "text": "D",
+        "textWidth": 10,
+        "boxWidth": 120,
+        "overflow": false
+      }
+    ],
+    "inline-themes": [
+      {
+        "text": "A",
+        "textWidth": 10,
+        "boxWidth": 120,
+        "overflow": false
+      },
+      {
+        "text": "B",
+        "textWidth": 10,
+        "boxWidth": 120,
+        "overflow": false
+      }
+    ]
+  },
+  "star": {
+    "width": 1960,
+    "height": 5568,
+    "hub": "Rect(x=64, y=2000, width=120, height=1568)"
+  }
+}

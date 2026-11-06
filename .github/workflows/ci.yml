@@ -48,5 +48,38 @@ jobs:
           python-version: "3.14"
       - run: python -m pip install --upgrade build twine
       - run: python -m build
-      - run: python -m twine check dist/*
+      - run: python -m twine check --strict dist/*
+
+  visual:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -e ".[visual]"
+      - run: python -m playwright install --with-deps chromium
+      - run: python scripts/verify_visuals.py
+
+  npm:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node: ["22", "24"]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: npm
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: npm/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm test
+      - run: npm pack
+      - run: npm run smoke
 

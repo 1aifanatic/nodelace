@@ -1,0 +1,22 @@
+{
+  "repository": "https://github.com/cathrynlavery/diagram-design",
+  "reviewed_on": "2026-11-06",
+  "commit": "e57eda6102a19444538ebd611d39534fad65b663",
+  "version": "2.6.142",
+  "last_substantive_commit": "26dd8eae349b9d347d64c6af70fd111df0171101",
+  "implemented_contracts": [
+    "editorial hierarchy, restrained color, thin strokes and semantic focus",
+    "light and dark surface roles with readable text and essential marks",
+    "explicit semantic node and message roles rather than label-based guessing",
+    "visible ALT branch guards and explicit return messages",
+    "density budgets, legends, destination sizing and local publication checks"
+  ],
+  "intentional_differences": [
+    "three diagram families rather than all upstream types",
+    "deterministic local layout rather than unconstrained visual composition",
+    "contrast-adjusted accent and conservative font metrics",
+    "simple sequence frames with at most one nested level",
+    "no animation, website scraping, GUI or broad imports"
+  ],
+  "update_process": "Compare upstream semantic changes against these contracts; add a source fixture and geometry or browser regression before changing rendering. Version bumps alone do not require feature work."
+}

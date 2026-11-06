@@ -14,11 +14,11 @@ from nodelace.cli import main
 from nodelace.errors import DiagramValidationError
 from nodelace.renderer import MAX_SOURCE_BYTES, render_file
 
-SOURCE = '''architecture "Tiny service"
+SOURCE = """architecture "Tiny service"
 Client -> API: request
 API -> Store: query
 highlight API
-'''
+"""
 
 
 def test_check_command_reports_summary(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -359,5 +359,5 @@ def test_module_entry_point_reports_version() -> None:
     )
 
     assert result.returncode == 0
-    assert result.stdout.strip() == "nodelace 0.1.0"
+    assert result.stdout.strip() == "nodelace 0.3.0"
     assert result.stderr == ""

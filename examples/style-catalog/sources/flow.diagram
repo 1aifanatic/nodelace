@@ -1,0 +1,13 @@
+flow "Decide, join, finish"
+direction top-to-bottom
+node Review shape=box role=backend tag=CHECK sublabel="Inspect the request"
+node Gate shape=decision label="Ready?"
+node Revise shape=box role=optional
+node Join shape=merge
+node Done shape=terminal
+Review -> Gate
+Gate => Join: yes
+Gate -> Revise: no
+Revise -> Join: reviewed
+Join -> Done
+highlight Gate

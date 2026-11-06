@@ -1,0 +1,15 @@
+architecture "Components and relationships"
+direction left-to-right
+node User role=input tag=INPUT
+node Gateway role=backend tag=API sublabel="Validate requests"
+node Queue role=default tag=EVENTS
+node Database role=store tag=DATA
+node Partner role=external tag=REMOTE
+node Cache role=optional tag=CACHE
+User -> Gateway: HTTPS
+Gateway => Database: commit
+Gateway ~> Queue: publish
+Queue -> Partner: deliver
+Gateway -> Cache: lookup
+group Platform: Gateway, Database, Queue, Cache
+highlight Gateway

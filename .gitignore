@@ -6,6 +6,12 @@ __pycache__/
 .ruff_cache/
 .mypy_cache/
 .venv/
+.venv-release/
 build/
 dist/
+node_modules/
+*.tgz
+npm/python/
+npm/LICENSE
+npm/THIRD_PARTY_NOTICES.md
 

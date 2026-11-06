@@ -1,0 +1,9 @@
+flow "Route the next support ticket"
+node Ticket shape=terminal label="Ticket arrives"
+node Urgency shape=decision label="Urgent?"
+node OnCall shape=terminal label="Page on-call"
+node Queue shape=terminal label="Standard queue"
+Ticket -> Urgency
+Urgency => OnCall: yes
+Urgency -> Queue: no
+highlight OnCall

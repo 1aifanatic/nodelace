@@ -1,0 +1,9 @@
+architecture "An assistant with context"
+node App role=external tag=WEB sublabel="Conversation UI"
+node Gateway role=backend tag=CORE sublabel="Assemble context"
+node Model role=external tag=LLM sublabel="Generate response"
+node Memory role=store tag=SEARCH sublabel="Relevant knowledge"
+App -> Gateway: prompt
+Gateway => Model: request
+Gateway -> Memory: retrieve
+highlight Gateway

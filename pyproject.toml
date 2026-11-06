@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nodelace"
-version = "0.1.0"
+version = "0.3.0"
 description = "Deterministic, offline diagrams from a tiny text language"
 readme = "PYPI_README.md"
 requires-python = ">=3.11"
@@ -46,6 +46,7 @@ Repository = "https://github.com/1aifanatic/nodelace"
 Issues = "https://github.com/1aifanatic/nodelace/issues"
 
 [project.optional-dependencies]
+png = ["playwright>=1.50,<2"]
 dev = [
   "build>=1.2",
   "coverage[toml]>=7.6",
@@ -53,6 +54,7 @@ dev = [
   "ruff>=0.11",
   "twine>=6.1",
 ]
+visual = ["playwright>=1.50,<2", "fonttools[woff]>=4.55,<5"]
 
 [project.scripts]
 nodelace = "nodelace.cli:main"
@@ -68,6 +70,7 @@ where = ["src"]
 nodelace = [
   "py.typed",
   "assets/fonts/*.woff2",
+  "assets/*.json",
   "assets/licenses/*.txt",
 ]
 
